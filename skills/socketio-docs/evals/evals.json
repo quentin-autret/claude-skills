@@ -1,0 +1,66 @@
+{
+  "skill_name": "socketio-docs",
+  "evals": [
+    {
+      "id": 1,
+      "query": "We are upgrading an old chat server from Socket.IO 2 to Socket.IO 4.8 and the web client from socket.io-client 2 to 4.8. Rewrite this code for v4 and tell me how to roll it out without breaking users who still have the old client cached.\n\nServer:\n```js\nconst io = require('socket.io')(server, { origins: 'https://chat.example.com:*' });\nio.set('authorization', (handshake, cb) => cb(null, check(handshake.query.token)));\nio.on('connection', (socket) => {\n  socket.join('lobby', () => {\n    console.log(Object.keys(socket.rooms));\n    socket.to('lobby').broadcast.emit('joined', socket.id);\n  });\n});\n```\n\nClient:\n```js\nconst socket = io('https://api.example.com', { query: { token } });\nsocket.on('error', (err) => showLogin(err));\nsocket.on('reconnect_attempt', () => console.log('retrying'));\n```",
+      "files": [],
+      "expected_behavior": [
+        "Replaces the origins option with cors: { origin: [...] } (key named origin, explicit list)",
+        "Replaces io.set('authorization') with an io.use((socket, next) => ...) middleware that calls next() or next(err)",
+        "Sends the token with the client auth option and reads socket.handshake.auth.token on the server, instead of query",
+        "Makes socket.join synchronous (no callback) and treats socket.rooms as a Set",
+        "Replaces socket.to('lobby').broadcast.emit with socket.to('lobby').emit",
+        "Listens for refused connections with connect_error instead of error, and moves reconnect_attempt to the Manager (socket.io.on)",
+        "Uses named imports or require destructuring (import { Server } from 'socket.io', import { io } from 'socket.io-client')",
+        "Describes the rolling upgrade: servers first with allowEIO3: true, then clients, then allowEIO3 back to false"
+      ]
+    },
+    {
+      "id": 2,
+      "query": "Our Socket.IO 4 app runs as 3 Node.js containers behind nginx on Kubernetes. Since we went from 1 to 3 replicas, browsers log HTTP 400 errors with {\"code\":1,\"message\":\"Session ID unknown\"}, users connected to replica A do not get messages emitted on replica B, and connections drop every 60 seconds or so. We also want missed messages to be restored after a short network loss. Tell me what to change, with code.",
+      "files": [],
+      "expected_behavior": [
+        "Explains that Session ID unknown means sticky sessions are missing and that they are required while HTTP long-polling is enabled, whatever the adapter",
+        "Proposes sticky routing on the client IP (taken from X-Forwarded-For behind the ingress) or a cookie, or disabling long-polling with transports: ['websocket'] and stating its downside",
+        "Adds an adapter so broadcasts cross replicas, created with your own Redis clients",
+        "Because recovery is wanted, picks the Redis Streams adapter rather than the Redis Pub/Sub adapter, which does not support connection state recovery",
+        "Enables connectionStateRecovery with a bounded maxDisconnectionDuration and branches on socket.recovered",
+        "Checks the proxy timeout is above pingInterval + pingTimeout (45 s by default) and the Upgrade/Connection headers are forwarded"
+      ]
+    },
+    {
+      "id": 3,
+      "query": "Write a Socket.IO 4.8 client and server snippet where the browser sends 'order:create' and must be sure the server stored the order exactly once, even if the connection drops while sending. The client should await the server's answer, give up after 10 seconds per attempt, and never show a duplicate order.",
+      "files": [],
+      "expected_behavior": [
+        "Uses the client retries and ackTimeout options (or timeout() with a retry) so the event is sent at least once",
+        "Awaits the answer with socket.timeout(...).emitWithAck(...) or uses an (err, response) callback with timeout(), inside try/catch",
+        "Attaches a client-generated unique ID to each order and stores it under a unique constraint on the server",
+        "Acknowledges duplicates on the server (calls the callback) so the client stops retrying, and does not acknowledge on other errors",
+        "Calls the acknowledgement callback with 1 argument and validates that the callback is a function",
+        "Passes the order object directly without JSON.stringify"
+      ]
+    },
+    {
+      "id": 4,
+      "query": "In our Socket.IO 4 server we store socket.id in the users table at connection time so a background job can later do io.to(user.socketId).emit('notification', data). Some notifications never arrive, especially after users refresh the page or open a second tab. Also our client code does socket.on('connect', () => { socket.on('notification', render); }) and some users see each notification several times. Fix both problems.",
+      "files": [],
+      "expected_behavior": [
+        "Explains socket.id is regenerated on every reconnection and page refresh, differs per tab and has no queue, so it must not be stored as a user identifier",
+        "Joins a room named after the user ID (derived from a session or auth payload validated in a middleware) and emits with io.to(userId).emit",
+        "Moves the client listener out of the connect handler to top level, because connect fires on every reconnection",
+        "Mentions that the server stores no message, so notifications sent while the user is offline need persistence or replay"
+      ]
+    },
+    {
+      "id": 5,
+      "query": "Write a plain WebSocket server with the ws package that echoes every message back.",
+      "files": [],
+      "expected_behavior": [
+        "Does not apply the socketio-docs skill, because the task uses plain WebSocket and not Socket.IO",
+        "Answers with the ws package API rather than Socket.IO APIs"
+      ]
+    }
+  ]
+}
