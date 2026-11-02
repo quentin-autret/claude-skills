@@ -1,0 +1,44 @@
+[
+  {
+    "query": "I'm writing a Semgrep taint rule for Python that flags request.args.get(...) values reaching cursor.execute(query). My team has a helper escape_sql(x) that should count as a sanitizer, and some code calls it as a standalone statement (escape_sql(user_id)) before using user_id later. Show me the rule and a test file with ruleid/ok annotations, and tell me how to run the tests.",
+    "files": [],
+    "expected_behavior": [
+      "Uses mode: taint with pattern-sources, pattern-sanitizers and pattern-sinks, and targets only the query argument of the sink with a patterns block combining the call pattern and focus-metavariable (not a bare pattern: $X)",
+      "For the standalone escape_sql(user_id) call, marks the sanitizer with by-side-effect: true plus focus-metavariable on the argument, because by-side-effect defaults to false and without it only the x inside the call is sanitized, not later uses (taint-mode/advanced)",
+      "Notes the exact defaults: sources and sanitizers default to exact: false (every subexpression counts, so sanitize(sink(x)) is not reported) while sinks default to exact: true, and advises writing exact explicitly when relying on it (taint-mode/overview)",
+      "Puts the annotation as a comment on the line directly before the code (# ruleid: <id> must match, # ok: <id> must not match), stores the test target next to the rule with the same base name (rule.yaml tests rule.py), and runs semgrep --test (printing All tests passed) rather than semgrep scan (testing-rules)",
+      "Uses severity HIGH/MEDIUM/LOW/CRITICAL rather than the old ERROR/WARNING/INFO (rule-syntax)"
+    ]
+  },
+  {
+    "query": "My Semgrep rule for JavaScript is too noisy. It matches fetch($URL, ...) and I want to skip calls already inside a try block, only flag when $URL is a string literal starting with \"http://\", and only highlight the URL argument rather than the whole call. I tried pattern-not: try { ... } and metavariable-regex with regex 'http://' but it never fires. What's wrong and how do I fix it?",
+    "files": [],
+    "expected_behavior": [
+      "Explains that pattern-not only removes a match of the same extent, so excluding code surrounded by a try block needs pattern-not-inside (kb/rules/using-pattern-not-inside)",
+      "Explains that metavariable-regex runs on the whole matched text including the quotes of a string literal, and is left anchored, so a regex like ^\"http:// (or .* prefix handling) is required rather than 'http://' (rule-syntax, troubleshooting/rules)",
+      "Uses focus-metavariable: $URL to narrow the reported range, and notes it is evaluated last, after positive patterns, negative patterns and conditionals (rule-syntax)",
+      "Notes that metavariable-regex and the negative operators are only valid directly under patterns, and that conditionals only see metavariables bound by positive patterns (rule-syntax)"
+    ]
+  },
+  {
+    "query": "I run semgrep scan (Community Edition CLI) on my repo. I added a rule file under configs/, but my findings in tests/ never show up, and my '# nosemgrep: my-rule' comment doesn't suppress anything. I also created a .semgrepignore with just 'generated/' and now node_modules is being scanned. What is going on?",
+    "files": [],
+    "expected_behavior": [
+      "States that test/, tests/ and vendor/ (plus node_modules, build, dist and others) are ignored by default, which explains the missing findings in tests/ (ignoring-files-folders-code)",
+      "States that a custom .semgrepignore replaces the default ignore list instead of extending it, so node_modules is scanned once the file exists; copy the wanted defaults into it (ignoring-files-folders-code)",
+      "Explains that local rules get an id prefix derived from the rule file's directory (configs.my-rule), and the nosemgrep comment must use that namespaced id, placed on the first line of the match or the line before (running-rules, ignoring-files-folders-code)",
+      "Mentions that the project .semgrepignore should be at the Git root with semgrep run from there, and that files over 1 MB are skipped regardless of ignores (ignoring-files-folders-code, kb/semgrep-code/semgrepignore-ignored)"
+    ]
+  },
+  {
+    "query": "I want to add Semgrep to our GitLab CI to block merge requests that introduce new findings. We don't have a Semgrep account yet. What command should the job run, how do exit codes work, how do I scan only new findings, and what do I lose compared to the Pro engine?",
+    "files": [],
+    "expected_behavior": [
+      "Warns that semgrep scan exits 0 even when it finds issues unless --error is passed, in which case it exits 1; exit 2 means Semgrep failed (cli-reference, customize-semgrep-ce)",
+      "Without an account, uses semgrep scan --config ... (CE); semgrep ci needs a login or SEMGREP_APP_TOKEN and does not support --config, and semgrep ci also exits 0 on internal errors unless --no-suppress-errors is passed (cli-reference, configuring-blocking-and-errors-in-ci)",
+      "For only new findings in CE, uses --baseline-commit=<sha> (ideally the merge-base with the target branch), noting it aborts outside Git, with unstaged changes or with an unknown hash; the SEMGREP_BASELINE_REF variable is the older name, superseded by SEMGREP_BASELINE_COMMIT (cli-reference, ci-environment-variables)",
+      "Notes a shallow clone breaks the merge-base lookup, so set GIT_DEPTH (e.g. 20 or 50) in GitLab (kb/semgrep-ci/git-command-errors)",
+      "Says CE taint analysis stays inside 1 function and constant propagation inside 1 file, while the Pro engine adds cross-function and cross-file analysis, and diff-aware scans never run cross-file analysis (semgrep-pro-vs-oss, customize-ci-jobs)"
+    ]
+  }
+]
