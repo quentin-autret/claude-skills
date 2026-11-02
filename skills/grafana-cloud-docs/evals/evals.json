@@ -1,0 +1,58 @@
+[
+  {
+    "id": "otlp-sdk-export-to-cloud",
+    "query": "My Node service uses the OpenTelemetry SDK and I want to send traces and metrics straight to Grafana Cloud with environment variables. I set OTEL_EXPORTER_OTLP_TRACES_ENDPOINT to the OTLP URL from the portal and I get 404 on traces. Also my dashboards can't find http.route as a label on my request metrics. What do I change and how do I query it?",
+    "files": [],
+    "expected_behavior": [
+      "States that a signal-specific variable such as OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is used as-is and must include the full path, for example https://otlp-gateway-<REGION>.grafana.net/otlp/v1/traces, whereas the base OTEL_EXPORTER_OTLP_ENDPOINT gets /v1/traces appended by the SDK",
+      "Says traces must go to the OTLP gateway and not to the Tempo query URL https://<STACK>.grafana.net/tempo, which rejects them",
+      "Uses basic auth with the numeric instance ID as user and a Cloud access policy token with the traces:write scope as password",
+      "Says to copy the exact endpoint from the stack's OpenTelemetry tile or the portal rather than building it from a template, because hostname format depends on region creation date (flat before 2026-01-15, nested after)",
+      "Explains that dots in metric attribute names become underscores, so http.route is queried as http_route",
+      "Explains that resource attributes land in target_info and are joined on job and instance, for example with on(job, instance) group_left(...) target_info, and that only a default list (service.*, k8s.cluster.name, deployment.environment and similar) is promoted to labels on every series",
+      "Mentions that a collector such as Grafana Alloy is the production default and direct SDK export suits dev or test"
+    ]
+  },
+  {
+    "id": "alert-rule-no-data-routing-as-code",
+    "query": "I need a CPU alert in Grafana Cloud managed with Terraform, routed to the backend team's Slack. Our service sometimes stops reporting metrics for a while. Someone said we got weird alerts that ignored our mute timing during a maintenance window. How should I build the rule, the routing, and the provisioning?",
+    "files": [],
+    "expected_behavior": [
+      "Uses a Grafana-managed alert rule (grafana_rule_group) with a Reduce and Threshold expression pair, where expressions use datasource_uid = \"__expr__\"",
+      "Explains that by default No Data and Error states raise separate DatasourceNoData and DatasourceError alerts, with labels alertname, datasource_uid and rulename, that are independent of the original alert so its silences, mute timings and policies may not apply",
+      "Suggests routing those alerts with a policy matching alertname=DatasourceError (and DatasourceNoData) grouped by datasource_uid, or choosing an explicit No Data or Error handling state on the rule",
+      "States that only labels route alerts: a team value placed in an annotation falls to the default policy, so team=backend must be a label",
+      "Notes that sibling policies stop at the first match unless Continue matching siblings is enabled, and that mute timings attach to child policies only and are not inherited",
+      "Warns that provisioning the notification policy tree (grafana_notification_policy) overwrites all existing policies because it is one resource",
+      "Says Grafana Cloud has no file provisioning, so Terraform or the HTTP API is used, with a service account token (not an access policy token) for the Alerting provisioning API",
+      "Advises avoiding query values in labels (use annotations) because a changing label value creates a different alert instance"
+    ]
+  },
+  {
+    "id": "synthetic-monitoring-login-journey-alerts",
+    "query": "I want to monitor our public API from Grafana Cloud Synthetic Monitoring: first POST to /login to get a token, then GET /orders with that token, from 4 locations every minute. Set it up and alert me when it breaks. Ours is a staging API that allows one session per user.",
+    "files": [],
+    "expected_behavior": [
+      "Chooses a MultiHTTP check because a token from sign-in is needed in a second request, rather than a plain HTTP check",
+      "Warns that MultiHTTP does not validate a 200 status automatically, so assertions must be defined for each request or failures never affect uptime",
+      "Warns that every selected probe runs the check at every interval at nearly the same time, so 4 probes at 1 minute means 4 hits per minute and the single-session-per-user API must tolerate concurrent sessions",
+      "Uses per-check alerts (failed checks, and optionally latency) rather than legacy data source-managed alerts",
+      "States that Synthetic Monitoring alerts carry the label namespace = synthetic_monitoring so a child notification policy can route on it, and suggests grouping by instance and job",
+      "Mentions that private probe firewalls must allow jslib.k6.io if variables or libraries are used, or that variables are referenced as ${name}",
+      "If a Terraform resource is given, uses grafana_synthetic_monitoring_check with a multihttp block inside settings"
+    ]
+  },
+  {
+    "id": "migrate-api-keys-and-legacy-routes",
+    "query": "Our CI scripts still create dashboards with an old Grafana API key via POST /api/dashboards/db, and our Terraform uses grafana_api_key. We use Grafana Cloud and want to migrate. I tried my Cloud access policy token against the stack's dashboard endpoint and got unauthorized. What is the right way to do this now?",
+    "files": [],
+    "expected_behavior": [
+      "Explains that access policy tokens authorize telemetry and the Cloud API at grafana.com but not the instance HTTP API, so dashboards need a service account token",
+      "Replaces instance API keys and grafana_api_key with service accounts, using grafana_service_account and grafana_service_account_token in Terraform",
+      "Sends the service account token in the Authorization: Bearer <TOKEN> header",
+      "Recommends setting an expiry on the token because service account tokens have no expiry by default",
+      "Recommends moving off legacy /api routes (deprecated in Grafana 13) to /apis/<group>/<version>/namespaces/<ns>/..., using namespace stacks-<STACK_ID> on Cloud and the GA v1 version",
+      "States that the dashboard API addresses a dashboard by metadata.name (the uid) in the path, not the metadata.uid field"
+    ]
+  }
+]
