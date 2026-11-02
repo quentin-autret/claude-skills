@@ -1,0 +1,61 @@
+{
+  "skill_name": "tauri-docs",
+  "evals": [
+    {
+      "id": 1,
+      "query": "In my Tauri 2 app the frontend must read a JSON settings file stored in the app data directory using @tauri-apps/plugin-fs. Show me everything I need to add: Rust, npm, config and JS.",
+      "files": [],
+      "expected_behavior": [
+        "Adds the fs plugin with both the crate and the npm package, and registers it with .plugin(tauri_plugin_fs::init()) on the builder",
+        "Grants access through a capability file under src-tauri/capabilities/ that targets the window by label, not through a Tauri 1 allowlist",
+        "Grants a read permission together with a scope on $APPDATA (or the matching BaseDirectory), and states that a permission without a scope fails with a forbidden path error",
+        "Reads the file with readTextFile and baseDir: BaseDirectory.AppData instead of building an absolute path by hand",
+        "Says the npm package and the crate of the plugin must stay on matching versions"
+      ]
+    },
+    {
+      "id": 2,
+      "query": "I need to stream download progress from a long-running Rust command to my Tauri 2 frontend and also read a value from managed state inside that async command. Write the Rust command and the JS call.",
+      "files": [],
+      "expected_behavior": [
+        "Uses tauri::ipc::Channel passed as a command argument for the progress stream, and explains channels are preferred over events for ordered or streamed data",
+        "Makes the async command that takes State<'_, T> or borrowed arguments return a Result",
+        "Registers the command in a single generate_handler! inside one invoke_handler call",
+        "Calls invoke from @tauri-apps/api/core with camelCase argument keys and a new Channel with an onmessage handler",
+        "Uses app.manage with a Mutex for mutable state without wrapping it in Arc, and names the runtime failure of a mismatched State type"
+      ]
+    },
+    {
+      "id": 3,
+      "query": "Set up auto-updates for my Tauri 2 desktop app distributed through GitHub Releases. What keys, config and code do I need?",
+      "files": [],
+      "expected_behavior": [
+        "Generates a signing key pair with the tauri signer command and puts the public key content (not a path) in plugins.updater.pubkey",
+        "Says TAURI_SIGNING_PRIVATE_KEY must be set as a real environment variable at build time and that a .env file is not read",
+        "Enables bundle.createUpdaterArtifacts so the build emits the signatures",
+        "Grants the updater permission in a capability and calls check() then downloadAndInstall() from app code, stating nothing checks automatically",
+        "Warns that losing the private key prevents shipping updates to installed users"
+      ]
+    },
+    {
+      "id": 4,
+      "query": "I am porting a Tauri 1 app to Tauri 2. It uses the allowlist, imports invoke from @tauri-apps/api/tauri, and on Windows stores user data in localStorage. What breaks and what do I change?",
+      "files": [],
+      "expected_behavior": [
+        "Recommends running the tauri migrate command first, then reviewing its output",
+        "Replaces the allowlist with capabilities and permissions, and moves APIs that left the core to their plugins",
+        "Changes the import to @tauri-apps/api/core",
+        "Warns that the Windows origin moves from https://tauri.localhost to http://tauri.localhost, which loses localStorage and IndexedDB, and gives app.windows[].useHttpsScheme: true as the fix"
+      ]
+    },
+    {
+      "id": 5,
+      "query": "Write a Rust function that parses a CSV line into a Vec<String>, handling quoted fields.",
+      "files": [],
+      "expected_behavior": [
+        "Does not read any reference file of the skill and does not apply its Tauri guidance",
+        "Answers as a plain Rust question, without Tauri APIs"
+      ]
+    }
+  ]
+}
