@@ -1,0 +1,66 @@
+{
+  "skill_name": "rust-std-docs",
+  "evals": [
+    {
+      "id": 1,
+      "query": "Write a Rust function that runs an external formatter binary with a file path argument and returns an error if the formatting fails. Use only std.",
+      "files": [],
+      "expected_behavior": [
+        "Passes the program to Command::new alone and each argument through a separate .arg call, not a single string with spaces",
+        "Checks output.status.success() (or status.success()) and returns an error on a non-zero exit, instead of treating Ok from output()/status() as success",
+        "Does not route the call through a shell for argument splitting",
+        "Converts stderr with String::from_utf8_lossy or similar when building the error message"
+      ]
+    },
+    {
+      "id": 2,
+      "query": "Review this Rust snippet: `let full = base_dir.join(user_supplied_name); if !full.exists() { let mut f = OpenOptions::new().write(true).open(&full)?; f.write_all(data)?; }` The goal is to store an uploaded file under base_dir without overwriting an existing one.",
+      "files": [],
+      "expected_behavior": [
+        "Points out that Path::join with an absolute user_supplied_name replaces base_dir entirely, so input must be validated",
+        "Points out that exists() then open is a TOCTOU race and that exists() returns false on errors such as permission denied",
+        "Recommends File::create_new or OpenOptions::new().write(true).create_new(true) as the atomic replacement",
+        "Notes that write(true) without create or truncate does not create the file and does not truncate an existing one"
+      ]
+    },
+    {
+      "id": 3,
+      "query": "I need a global configuration map in a multithreaded Rust program, loaded once from a file on first use, using only std. Show the code.",
+      "files": [],
+      "expected_behavior": [
+        "Uses std::sync::LazyLock (or OnceLock) rather than an external lazy-static crate or a static mut",
+        "Mentions that a panic inside the LazyLock initializer poisons it permanently so every later access panics, and suggests OnceLock with explicit error handling when loading can fail",
+        "Does not call std::env::set_var after threads start, or marks it unsafe and explains it is only sound single-threaded"
+      ]
+    },
+    {
+      "id": 4,
+      "query": "Spawn 4 worker threads that each send results over a std::sync::mpsc channel, then collect all results in main with a while let Ok(x) = rx.recv() loop.",
+      "files": [],
+      "expected_behavior": [
+        "Clones the Sender for each worker and drops the original tx in main before the receive loop, explaining the loop never ends otherwise",
+        "Joins the JoinHandles or uses thread::scope so workers are not silently detached",
+        "Does not claim that recv returns Err while any Sender is still alive"
+      ]
+    },
+    {
+      "id": 5,
+      "query": "Sort a Vec<f64> of measurements in place and then remove every negative value from it, keeping the removed values in a separate Vec. Target stable Rust 1.99.",
+      "files": [],
+      "expected_behavior": [
+        "Sorts with sort_by(|a, b| a.total_cmp(b)) or sort_unstable_by with total_cmp instead of partial_cmp().unwrap()",
+        "Uses Vec::extract_if (stable since 1.87) to remove and collect negatives in one pass, or explains it as the current replacement for a manual loop",
+        "Notes that if the extract_if iterator is not fully consumed, unvisited elements stay in the vector"
+      ]
+    },
+    {
+      "id": 6,
+      "query": "Write a tokio-based async HTTP handler with axum that returns JSON for GET /health.",
+      "files": [],
+      "expected_behavior": [
+        "Does not open the std reference files for this request, which is about third-party crates",
+        "Answers from the tokio and axum APIs without importing std-only advice that does not apply"
+      ]
+    }
+  ]
+}
