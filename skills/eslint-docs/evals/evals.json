@@ -1,0 +1,45 @@
+[
+  {
+    "query": "Our ESLint 10 flat config still lints the generated files in src/generated and the legacy folder. Why does `ignores` not work, and how do I fix it?\n\n```js\n// eslint.config.js\nimport js from \"@eslint/js\";\nimport { defineConfig } from \"eslint/config\";\n\nexport default defineConfig([\n  {\n    files: [\"**/*.js\"],\n    ignores: [\"src/generated/\", \"legacy/\"],\n    plugins: { js },\n    extends: [\"js/recommended\"],\n  },\n]);\n```",
+    "files": [],
+    "expected_behavior": [
+      "Explains that `ignores` next to other keys (here `files`) is non-global and matches file names only, so a directory pattern like `\"src/generated/\"` ignores nothing",
+      "Offers either a global ignores object (an object whose only key is `ignores`) or `globalIgnores([\"src/generated/\", \"legacy/\"])` from `eslint/config`, and states global ignores can match directories",
+      "Or, if keeping non-global ignores, rewrites the patterns as `\"src/generated/**\"` and `\"legacy/**\"`",
+      "Recommends `globalIgnores()` to make the intent explicit"
+    ]
+  },
+  {
+    "query": "We are moving a repo from ESLint 8 to ESLint 10. It has a `.eslintrc.json` with `\"env\": { \"browser\": true, \"mocha\": true }`, `\"extends\": \"eslint:recommended\"`, an `.eslintignore` with `dist/`, and test files that start with `/* eslint-env mocha */`. I set `ESLINT_USE_FLAT_CONFIG=false` in CI to keep the old config working for now. Will that work, and what should the new setup look like?",
+    "files": [],
+    "expected_behavior": [
+      "States that eslintrc is removed in ESLint 10 and `ESLINT_USE_FLAT_CONFIG=false` no longer brings it back, so the old config cannot be kept",
+      "Converts to an `eslint.config.js` using `defineConfig`, with `js.configs.recommended` (or `extends: [\"js/recommended\"]` with `plugins: { js }`) replacing `eslint:recommended`",
+      "Replaces `env` with `languageOptions.globals` using the separate `globals` package (browser and mocha), noting `globals` must be installed",
+      "Replaces `.eslintignore` `dist/` with `globalIgnores([\"dist/\"])`",
+      "Notes that `/* eslint-env mocha */` comments are reported as errors in ESLint 10 and must become `/* global describe, it */` or config globals",
+      "Mentions the Node.js requirement (`^20.19.0`, `^22.13.0` or `>=24`) or the `npx @eslint/migrate-config` / `npx codemod @eslint/v9-to-v10` helpers"
+    ]
+  },
+  {
+    "query": "Our custom ESLint rule worked on ESLint 8 and now crashes on ESLint 10 with `context.getScope is not a function`. Update it to current APIs.\n\n```js\nmodule.exports = {\n  create(context) {\n    const sourceCode = context.getSourceCode();\n    return {\n      Identifier(node) {\n        if (context.getFilename().endsWith('.test.js')) return;\n        const scope = context.getScope();\n        const ref = scope.references.find((r) => r.identifier === node);\n        if (ref && !ref.resolved) {\n          context.report({ node, message: 'Undeclared ' + node.name, fix: (fixer) => fixer.insertTextBefore(node, 'window.') });\n        }\n      },\n    };\n  },\n};\n```",
+    "files": [],
+    "expected_behavior": [
+      "Replaces `context.getScope()` with `sourceCode.getScope(node)` (passing the node)",
+      "Replaces `context.getSourceCode()` with the `context.sourceCode` property and `context.getFilename()` with `context.filename`",
+      "Rewrites the rule as `{ meta, create(context) }` and adds `meta.fixable: \"code\"` because the rule returns a fix (ESLint throws otherwise)",
+      "Reports with `messageId` and `meta.messages` instead of a `message` string",
+      "Does not suggest keeping the removed `context.getX()` methods, and at most mentions `@eslint/compat` or `eslint-transforms v9-rule-migration` as migration helpers"
+    ]
+  },
+  {
+    "query": "We adopted a new rule with bulk suppressions in CI:\n\n```sh\neslint --fix --suppress-all\n```\n\nand committed `eslint-suppressions.json`. A teammate then fixed several old violations by hand, and now `eslint .` in CI exits with code 2 and says there are suppressions left that do not occur anymore. Also, we set the new rule to `\"warn\"` and nothing was suppressed. What is going on and what should we do?",
+    "files": [],
+    "expected_behavior": [
+      "Explains that fixing a suppressed violation makes ESLint exit 2 (\"There are suppressions left that do not occur anymore\")",
+      "Gives the fix: run `eslint --prune-suppressions` and commit the updated `eslint-suppressions.json`, or pass `--pass-on-unpruned-suppressions`",
+      "Explains that only rules set to `\"error\"` are suppressed, which is why the `\"warn\"` rule recorded nothing",
+      "Notes that a custom `--suppressions-location`, if used, must be passed on every run"
+    ]
+  }
+]
