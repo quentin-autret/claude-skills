@@ -1,0 +1,49 @@
+[
+  {
+    "id": "serialize-shared-db-tests",
+    "query": "Two of my Playwright spec files both reset and seed the same shared test database, and they collide when workers run them in parallel. Currently I wrapped them in test.describe.configure({ mode: 'serial' }) but the whole suite got slow. Fix it in TypeScript so only the DB tests are serialized.",
+    "files": [],
+    "expected_behavior": [
+      "Replaces serial mode with a named test lock, for example test('reset the database', { lock: 'database' }, ...)",
+      "Explains that tests holding the same lock never run concurrently across files, workers and projects while everything else stays parallel",
+      "May use test.describe.configure({ lock: '...' }) to lock a whole describe block",
+      "Notes that in default and serial modes a lock on any test is held for the whole file",
+      "Does not keep test.describe.configure({ mode: 'serial' }) as the way to share the database"
+    ]
+  },
+  {
+    "id": "to-pass-retry-block",
+    "query": "In my Playwright TypeScript test, after clicking Submit I need to wait until an API returns status 'done' and the table row appears, and I wrote expect(async () => { ... }).toPass(). It sometimes hangs until the test timeout. What should I change?",
+    "files": [],
+    "expected_behavior": [
+      "States that toPass has a default timeout of 0 (no timeout) and so must be given an explicit timeout, for example toPass({ timeout: 60_000 })",
+      "States that toPass ignores the custom expect timeout, so the explicit option is needed",
+      "May pass intervals such as intervals: [1_000, 2_000, 10_000] together with the timeout",
+      "Suggests expect.poll for a single polled value instead of a whole retried block when a matching matcher is lacking",
+      "Keeps the assertions inside the toPass block as awaited web-first assertions"
+    ]
+  },
+  {
+    "id": "route-mock-with-service-worker",
+    "query": "My Playwright test mocks GET /api/items with page.route('**/api/items?page=1', ...) but the real backend still gets called and the mock never fires. The app registers a service worker. Rewrite the test and config in TypeScript so the mock works.",
+    "files": [],
+    "expected_behavior": [
+      "Identifies the service worker as serving the requests so that routes miss them, and sets serviceWorkers: 'block' in use",
+      "Registers page.route before page.goto so the route is in place for the first request",
+      "Warns that a glob must match the full URL and that ? in a glob matches only a literal question mark, so a RegExp or a query-free pattern is safer",
+      "Notes that Mock Service Worker hides requests from routes the same way, so mocking should use routes"
+    ]
+  },
+  {
+    "id": "setup-project-auth-and-ci-config",
+    "query": "Write a playwright.config.ts for GitHub Actions: log in once as a user and reuse the session in the chromium project, with sane CI settings. Also tell me what to put in the workflow for browsers and the test report. I currently use globalSetup to log in.",
+    "files": [],
+    "expected_behavior": [
+      "Uses a setup project (testMatch /.*\\.setup\\.ts/) that saves page.context().storageState({ path }) and a chromium project with storageState and dependencies: ['setup'] instead of globalSetup",
+      "Waits for the final URL or a post-login element before saving the storage state, and gitignores playwright/.auth",
+      "Sets forbidOnly: !!process.env.CI, retries: process.env.CI ? 2 : 0, workers: process.env.CI ? 1 : undefined, trace: 'on-first-retry' and a globalTimeout",
+      "Installs browsers with npx playwright install --with-deps after npm ci and does not cache the browser binaries",
+      "Uploads the report with if: ${{ !cancelled() }} so it runs after failed tests but not on cancellation"
+    ]
+  }
+]
