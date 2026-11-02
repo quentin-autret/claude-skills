@@ -1,0 +1,53 @@
+{
+  "skill_name": "bullmq-docs",
+  "evals": [
+    {
+      "id": "nightly-report-v6",
+      "query": "We are on BullMQ 6 with Node.js and TypeScript. Write the code that runs a 'nightly-report' job every day at 03:00 Paris time, and the worker that processes it. I create my own ioredis instance and share it. Also the Redis memory keeps growing with finished jobs, fix that too.",
+      "files": [],
+      "expected_behavior": [
+        "Uses queue.upsertJobScheduler with a stable scheduler id, a cron pattern and tz: 'Europe/Paris', not queue.add with a repeat option",
+        "Passes the job name, data and options as the third argument (template) of upsertJobScheduler",
+        "Creates the ioredis instance used by the Worker with maxRetriesPerRequest: null",
+        "Sets removeOnComplete and removeOnFail (count or age) because finished jobs are kept forever by default",
+        "Attaches an error listener to the worker",
+        "Does not use QueueScheduler, getRepeatableJobs or removeRepeatable"
+      ]
+    },
+    {
+      "id": "cpu-job-stalls",
+      "query": "My BullMQ worker resizes large images with a synchronous library. Under load, jobs fail with 'job stalled more than allowable limit' and some run twice. The worker has concurrency 10. How do I fix this properly in TypeScript?",
+      "files": [],
+      "expected_behavior": [
+        "Explains that the lock (30 s by default) is renewed from the event loop, so synchronous CPU work blocks the renewal and the job is seen as stalled",
+        "States that with the default maxStalledCount of 1 a job stalled twice fails, and that a stalled job can be processed again (at-least-once)",
+        "Moves the CPU work to a sandboxed processor (a processor file passed to the Worker, optionally useWorkerThreads)",
+        "Advises idempotent processing because a job can run more than once",
+        "Does not present raising concurrency as the fix for CPU-bound work"
+      ]
+    },
+    {
+      "id": "producer-hangs-and-retries",
+      "query": "In our Express API we call queue.add() from a request handler with BullMQ. When Redis went down the requests hung instead of failing. Also our failing jobs never seem to be retried even though the processor throws. Fix both in TypeScript.",
+      "files": [],
+      "expected_behavior": [
+        "Sets enableOfflineQueue: false on the producer connection so queue.add throws while Redis is down",
+        "Keeps the offline queue enabled on workers",
+        "States that jobs are not retried by default and sets attempts greater than 1 with a backoff (for example exponential)",
+        "Throws Error objects in the processor and mentions UnrecoverableError to stop retrying a job that can never succeed",
+        "Attaches an error listener to the queue"
+      ]
+    },
+    {
+      "id": "custom-job-id",
+      "query": "With BullMQ I want to avoid adding the same order twice, so I pass the order number as the job id: queue.add('charge', data, { jobId: String(order.id) }), where order.id is like 98123. Is that fine? Also some ids look like 'shop:98123'.",
+      "files": [],
+      "expected_behavior": [
+        "States that a custom jobId must not be digits only and must not contain ':'",
+        "Proposes a prefixed id such as 'order-98123'",
+        "Explains that adding a job with an existing id is ignored while the job still exists, so removal by removeOnComplete reopens the id",
+        "May point to the deduplication option as the alternative for time-bound duplicate suppression"
+      ]
+    }
+  ]
+}
