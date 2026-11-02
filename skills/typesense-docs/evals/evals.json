@@ -1,0 +1,60 @@
+[
+  {
+    "id": "import-hidden-failures",
+    "query": "My Node.js job syncs 50,000 products from Postgres into Typesense with client.collections('products').documents().import(docs, { action: 'upsert' }) inside a try/catch. No error is ever thrown, yet about 2,000 products are missing from search. The client uses connectionTimeoutSeconds: 5. What is wrong and how should the job be written?",
+    "files": [],
+    "expected_behavior": [
+      "States that import always answers HTTP 200 and reports each document on its own result line, so the try/catch never sees failed documents",
+      "Inspects every result line for success: false, logging the error and id (with return_id: true) instead of relying on exceptions",
+      "Points to schema validation as the usual cause and mentions dirty_values (for example coerce_or_reject) or fixing the data",
+      "Raises the client timeout for imports to at least 5 minutes and warns against retrying a write that is still running",
+      "Uses client-side batches rather than raising the server-side batch_size"
+    ]
+  },
+  {
+    "id": "multi-tenant-scoped-key-curation-leak",
+    "query": "We run a multi-tenant SaaS on one Typesense collection with a company_id field. The browser gets a key from generateScopedSearchKey(searchKey, { filter_by: 'company_id:124' }). We also use curation sets to pin promoted documents. A customer reported seeing another company's pinned document. Our parent key has actions ['documents:search', 'documents:get']. Fix the setup.",
+    "files": [],
+    "expected_behavior": [
+      "Explains that curated and pinned hits are not filtered by the embedded filter_by by default and embeds filter_curated_hits: true in the scoped search key",
+      "Requires the parent key to hold only documents:search, so documents:get must be removed (a new key created, since keys cannot be updated)",
+      "Generates the scoped search key on the backend per user and never exposes the parent key to the browser",
+      "Sets an expires_at on the scoped key that is earlier than the parent key's expiry",
+      "May mention that a filter-based curation rule must match the combined filter (request_filter) && (scoped_api_key_filter)"
+    ]
+  },
+  {
+    "id": "hybrid-search-alpha-and-weights",
+    "query": "In Typesense I have an auto-embedding field 'embedding' and a text field 'title'. I want hybrid search where semantic similarity counts for 80% and keyword match for 20%, and I pass query_by_weights '3' for title. Results come back slow and the response payload is huge. Write the multi_search request.",
+    "files": [],
+    "expected_behavior": [
+      "Uses query_by: 'title,embedding' with vector_query 'embedding:([], alpha: 0.8)', explaining that alpha is the weight of the vector side and the default fusion is 0.7 keyword and 0.3 vector",
+      "Gives query_by_weights the same length as query_by with a placeholder for the embedding field, for example '3,0'",
+      "Adds exclude_fields: 'embedding' so raw vectors are not returned",
+      "Sends the request through multi_search and suggests drop_tokens_threshold: 0 for multi-word hybrid queries to avoid extra keyword passes",
+      "Bounds results with k or distance_threshold when paginating"
+    ]
+  },
+  {
+    "id": "filter-precedence-and-nested-array",
+    "query": "This Typesense filter returns wrong results: filter_by = \"brand:=Acme || brand:=Globex && ingredients.name:=cheese && ingredients.concentration:<50 && category:=Snacks, Salty\". I want (Acme or Globex) products in the 'Snacks, Salty' category that contain an ingredient that is cheese at under 50 concentration. Fix it.",
+    "files": [],
+    "expected_behavior": [
+      "Explains that && and || share the same precedence and evaluate left to right, and adds parentheses around the brand OR (or uses brand:=[Acme, Globex])",
+      "Uses the same-object syntax ingredients.{name:=cheese && concentration:<50} because separate conditions can match different array items",
+      "Escapes the category value containing a comma with backticks: category:=`Snacks, Salty`",
+      "Keeps the mandatory colon form for every operator"
+    ]
+  },
+  {
+    "id": "v30-synonyms-migration",
+    "query": "After upgrading our self-hosted Typesense to 30.2, our admin tool that calls /collections/products/synonyms and uses an API key with actions ['synonyms:*'] gets 401 errors. How do we fix the tool and the key?",
+    "files": [],
+    "expected_behavior": [
+      "Explains that synonyms moved to top-level synonym sets at /synonym_sets, with existing ones migrated into a set named products_synonyms_index",
+      "Creates a new key with synonym_sets:* and synonym_sets/items:* (items are a separate scope) and deletes the old key, because keys cannot be updated",
+      "Links the set to the collection through the synonym_sets array (PATCH /collections/products) or passes synonym_sets as a search parameter",
+      "Mentions that self-hosted servers should snapshot before upgrading so the migration is not lost"
+    ]
+  }
+]
