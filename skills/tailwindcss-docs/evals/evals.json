@@ -1,0 +1,98 @@
+{
+  "skill_name": "tailwindcss-docs",
+  "evals": [
+    {
+      "id": 1,
+      "query": "I just created a Next.js app with the App Router (npx create-next-app@latest my-project --typescript --eslint --app). Add Tailwind CSS v4 to it. Give me the exact install command, every file to create or edit, and their contents.",
+      "files": [],
+      "expected_behavior": [
+        "Installs tailwindcss, @tailwindcss/postcss and postcss, not @tailwindcss/vite",
+        "Creates postcss.config.mjs with plugins: { \"@tailwindcss/postcss\": {} } as the only plugin, without autoprefixer or postcss-import",
+        "Puts @import \"tailwindcss\"; in app/globals.css instead of @tailwind base/components/utilities",
+        "Does not create a tailwind.config.js and does not add a content array",
+        "Does not run npx tailwindcss init"
+      ]
+    },
+    {
+      "id": 2,
+      "query": "In my Tailwind v4 Vite project, add a brand color called midnight (#121063) usable as bg-midnight and text-midnight, and make Oswald (loaded from Google Fonts) available as font-display. Here is my current src/app.css:\n\n@import \"tailwindcss\";",
+      "files": [],
+      "expected_behavior": [
+        "Declares --color-midnight: #121063 inside an @theme block, not in tailwind.config.js and not only on :root",
+        "Declares --font-display with Oswald inside @theme",
+        "Places the Google Fonts @import url(...) above @import \"tailwindcss\"",
+        "Does not wipe the default palette unless asked (no --color-*: initial)",
+        "Uses bg-midnight, text-midnight and font-display in the example markup"
+      ]
+    },
+    {
+      "id": 3,
+      "query": "Build a dark mode toggle for my Tailwind v4 site. The user picks light, dark or system, the choice is saved in localStorage, and dark styles must apply when <html> has the class dark. Show the CSS and the JavaScript, and avoid a flash of the wrong theme on load.",
+      "files": [],
+      "expected_behavior": [
+        "Adds @custom-variant dark (&:where(.dark, .dark *)); in the CSS instead of darkMode: 'class' in a JS config",
+        "Runs an inline script in <head> that toggles the dark class from localStorage.theme and window.matchMedia(\"(prefers-color-scheme: dark)\")",
+        "Uses localStorage.removeItem(\"theme\") for the system option",
+        "Styles elements with dark: variants such as dark:bg-gray-800"
+      ]
+    },
+    {
+      "id": 4,
+      "query": "Migrate this Tailwind v3 project to v4.\n\ntailwind.config.js:\nmodule.exports = {\n  content: ['./src/**/*.{js,jsx}'],\n  darkMode: 'class',\n  safelist: ['bg-red-500'],\n  theme: { extend: { colors: { brand: '#0f766e' } } },\n}\n\npostcss.config.js:\nmodule.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } }\n\nsrc/index.css:\n@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\nsrc/Card.jsx:\n<div className=\"shadow-sm rounded border bg-white bg-opacity-50 flex-shrink-0 focus:outline-none ring\">",
+      "files": [],
+      "expected_behavior": [
+        "Recommends running npx @tailwindcss/upgrade in a new branch and reviewing the diff",
+        "Replaces the PostCSS config with @tailwindcss/postcss alone and drops autoprefixer",
+        "Replaces the @tailwind directives with @import \"tailwindcss\";",
+        "Moves the brand color to @theme as --color-brand and the dark mode setting to @custom-variant dark (&:where(.dark, .dark *));",
+        "Replaces safelist with @source inline(\"bg-red-500\");",
+        "Renames shadow-sm to shadow-xs, rounded to rounded-sm, flex-shrink-0 to shrink-0 and focus:outline-none to focus:outline-hidden",
+        "Replaces bg-white bg-opacity-50 with bg-white/50",
+        "Adds an explicit border color because v4 borders default to currentColor",
+        "Rewrites ring as ring-3 with an explicit ring color such as ring-blue-500 to keep the v3 look"
+      ]
+    },
+    {
+      "id": 5,
+      "query": "In a SvelteKit app using Tailwind v4, this component style block fails with an error that bg-brand is an unknown utility, although bg-brand works in markup:\n\n<style>\n  .card { @apply bg-brand rounded-lg; }\n</style>\n\nFix it.",
+      "files": [],
+      "expected_behavior": [
+        "Explains that a component <style> block is compiled separately and does not see the theme",
+        "Adds @reference pointing to the main stylesheet (for example @reference \"../app.css\";) at the top of the style block",
+        "Offers the faster alternative of using the CSS variable directly, for example background-color: var(--color-brand)",
+        "Does not suggest adding the class to a safelist or a tailwind.config.js"
+      ]
+    },
+    {
+      "id": 6,
+      "query": "My React component builds Tailwind classes like className={`bg-${color}-600 hover:bg-${color}-500`} and the colors never show up in production. Why, and how do I fix it in Tailwind v4?",
+      "files": [],
+      "expected_behavior": [
+        "Explains that Tailwind scans source files as plain text and only generates complete class names it finds",
+        "Maps each prop value to a full class string such as { blue: \"bg-blue-600 hover:bg-blue-500\" }",
+        "Mentions @source inline(...) as the v4 way to safelist classes if a mapping is impossible, not the v3 safelist option"
+      ]
+    },
+    {
+      "id": 7,
+      "query": "Write a plain CSS card component (no framework, no build step) with a subtle shadow, rounded corners and a hover lift effect. Just give me the HTML and a <style> block.",
+      "files": [],
+      "expected_behavior": [
+        "Does not load the tailwindcss-docs skill or its references",
+        "Answers with plain CSS properties (box-shadow, border-radius, transform, transition), without Tailwind classes or directives"
+      ]
+    },
+    {
+      "id": 8,
+      "query": "Review this code from our Tailwind v4 project and fix everything that is wrong or outdated for v4.\n\napp.css:\n@import \"tailwindcss\";\n@layer utilities {\n  .content-auto { content-visibility: auto; }\n}\n\nButton.jsx:\n<button className=\"bg-[--brand] !font-bold rounded-sm border px-4 py-2 focus:outline-none lg:hover:content-auto\">Save</button>",
+      "files": [],
+      "expected_behavior": [
+        "Rewrites bg-[--brand] as bg-(--brand)",
+        "Moves the important modifier to the end: font-bold!",
+        "Replaces the @layer utilities block with @utility content-auto { content-visibility: auto; } so variants work on it",
+        "Replaces focus:outline-none with focus:outline-hidden",
+        "Adds an explicit border color because v4 borders default to currentColor"
+      ]
+    }
+  ]
+}
