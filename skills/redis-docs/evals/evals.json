@@ -1,0 +1,46 @@
+[
+  {
+    "id": "cache-ttl-and-session-fields",
+    "query": "Our Node.js API caches product pages in Redis 8.10 with `await client.set(key, html); await client.expire(key, 300);`. When a product changes we refresh the cache with `await client.set(key, newHtml)`. Some cache entries never expire and memory keeps growing. We also store user sessions as one hash per user, with a field per device, and want each device field to expire on its own after 30 days. How should both be written?",
+    "files": [],
+    "expected_behavior": [
+      "Explains that a plain SET discards the existing TTL, so the refresh makes the key persistent",
+      "Writes value and TTL in one command with SET key value EX 300 (or KEEPTTL to keep an existing TTL) instead of SET followed by EXPIRE",
+      "States that hash fields can expire individually since Redis 7.4 and uses HSETEX (or HEXPIRE) for the per-device field TTL, with HGETEX to read and refresh",
+      "Mentions that with maxmemory and an eviction policy, volatile-* policies never evict keys without TTL, or recommends setting maxmemory since it defaults to no limit"
+    ]
+  },
+  {
+    "id": "lock-release-redis-8",
+    "query": "We implement a distributed lock on a single Redis 8.10 primary. Acquire: SET lock:order:42 <random token> NX PX 30000. Release: a Lua script with EVAL that compares the token and deletes. A colleague suggests replacing the script with GET then DEL from the app, inside MULTI. Which release is correct, and is there a simpler way in Redis 8?",
+    "files": [],
+    "expected_behavior": [
+      "Rejects GET then DEL in MULTI: commands queued in MULTI cannot use a reply read earlier, so the check and delete are not atomic, and a transaction has no rollback",
+      "Proposes DELEX lock:order:42 IFEQ <token> (Redis 8.4 and later) as the atomic compare-and-delete instead of a Lua script or WATCH loop",
+      "Notes that if a script is kept, the EVAL script cache is lost on restart or failover (NOSCRIPT), so the client must fall back to EVAL or use Redis Functions",
+      "Warns that replication is asynchronous so a lock can be lost on failover, pointing to the documented limits of single-instance locks or Redlock"
+    ]
+  },
+  {
+    "id": "nodejs-worker-blocking-and-sentinel",
+    "query": "A Node.js worker uses one shared node-redis client for everything: it runs `await client.blPop('jobs', 0)` in a loop and, on the same client, `await client.incr('stats:processed')` after each job and `await client.lPush('results', r)`. Sometimes counters double after a network blip. A second service uses ioredis with Sentinel and kept writing to the old primary after a failover. What is wrong in each?",
+    "files": [],
+    "expected_behavior": [
+      "Explains that a blocking command like BLPOP holds the connection, so it needs its own dedicated connection (for example client.duplicate()) and must not share a multiplexed client",
+      "Identifies the node-redis offline queue replaying queued non-idempotent commands such as INCR after reconnect, and mentions disableOfflineQueue or making writes idempotent",
+      "Requires an error event listener on every node-redis client",
+      "States that ioredis does not listen for Sentinel failover announcements by default and needs failoverDetector: true"
+    ]
+  },
+  {
+    "id": "cluster-crossslot-and-pubsub",
+    "query": "We move from a standalone Redis to Redis Cluster. Our code runs MULTI; INCR user:42:visits; SADD active:users 42; EXEC and now gets CROSSSLOT errors. We also broadcast invalidation messages with PUBLISH to channel cache-invalidate and listen with SUBSCRIBE, and we use keyspace notifications to watch expirations. What must change?",
+    "files": [],
+    "expected_behavior": [
+      "Explains that multi-key commands, transactions and scripts in Cluster need all keys in the same hash slot, and fixes it with hash tags such as {user:42} on keys that must be updated together",
+      "Recommends sharded Pub/Sub (SSUBSCRIBE and SPUBLISH) in Cluster instead of PUBLISH and SUBSCRIBE",
+      "States that keyspace notifications are off by default, must be enabled with notify-keyspace-events, and are per node so a client must subscribe on every node",
+      "Notes that Pub/Sub and keyspace notifications are at-most-once and suggests Streams when messages must not be lost"
+    ]
+  }
+]
