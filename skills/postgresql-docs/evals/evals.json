@@ -1,0 +1,48 @@
+[
+  {
+    "id": "live-migration-big-table",
+    "query": "On PostgreSQL 18 our orders table has 80 million rows and takes writes all day. I need to ship this migration during business hours:\n\nBEGIN;\nALTER TABLE orders ADD COLUMN public_id uuid NOT NULL DEFAULT gen_random_uuid();\nALTER TABLE orders ADD COLUMN customer_id bigint REFERENCES customers(id);\nALTER TABLE orders ALTER COLUMN customer_id SET NOT NULL;\nCREATE INDEX orders_created_at_idx ON orders (created_at);\nCOMMIT;\n\nWill this block production, and how should I rewrite it?",
+    "files": [],
+    "expected_behavior": [
+      "States that ADD COLUMN with a volatile default such as gen_random_uuid() rewrites the whole table under an ACCESS EXCLUSIVE lock, while a non-volatile default would not",
+      "Replaces the plain CREATE INDEX with CREATE INDEX CONCURRENTLY, run outside a transaction block, and says to drop the INVALID index left behind if it fails",
+      "Adds the foreign key and the NOT NULL rule as NOT VALID constraints first, then runs VALIDATE CONSTRAINT separately, noting PostgreSQL 18 accepts NOT VALID for NOT NULL",
+      "Recommends an index on the referencing column customer_id, since PostgreSQL does not create one for foreign keys",
+      "Sets lock_timeout in the migration session so a blocked ALTER fails fast instead of queueing"
+    ]
+  },
+  {
+    "id": "pg18-generated-and-identity-columns",
+    "query": "I'm designing a new table for PostgreSQL 18:\n\nCREATE TABLE line_items (\n  id serial PRIMARY KEY,\n  order_id bigint NOT NULL,\n  quantity int NOT NULL,\n  unit_price numeric(12,2) NOT NULL,\n  total numeric GENERATED ALWAYS AS (quantity * unit_price),\n  created_at timestamp DEFAULT 'now'\n);\n\nWe will filter and sort on total a lot and replicate this table with logical replication. We also want sortable public ids. Review the DDL.",
+    "files": [],
+    "expected_behavior": [
+      "Explains that in PostgreSQL 18 a generated column without a keyword is VIRTUAL, computed on read, so total must be declared STORED to have statistics and to be replicated logically",
+      "Replaces serial with an identity column (GENERATED ... AS IDENTITY) and keeps the PRIMARY KEY, noting identity alone does not make the column unique",
+      "Replaces timestamp with timestamptz for an instant and replaces the 'now' string default with a function such as now() or CURRENT_TIMESTAMP",
+      "Suggests uuidv7(), new in PostgreSQL 18, for time-ordered public ids rather than gen_random_uuid()",
+      "Recommends an index on order_id as the referencing column if it becomes a foreign key"
+    ]
+  },
+  {
+    "id": "job-queue-and-retries",
+    "query": "Our Node.js workers pull jobs from a Postgres table. Each worker runs:\n\nBEGIN ISOLATION LEVEL SERIALIZABLE;\nSELECT id FROM jobs WHERE status = 'pending' ORDER BY id LIMIT 1 FOR UPDATE;\nUPDATE jobs SET status = 'running' WHERE id = $1;\nCOMMIT;\n\nWith 20 workers they mostly wait on each other, and sometimes we get errors like 'could not serialize access due to concurrent update' that we log and drop. Some sessions also stay 'idle in transaction' for hours after a crash. How should this be done?",
+    "files": [],
+    "expected_behavior": [
+      "Uses SELECT ... FOR UPDATE SKIP LOCKED so workers skip rows another worker holds, optionally FOR NO KEY UPDATE since keys do not change",
+      "Says a transaction failing with SQLSTATE 40001 (or deadlock 40P01) must be retried as a whole by the application, testing the SQLSTATE rather than the message, because PostgreSQL never retries by itself",
+      "Notes SERIALIZABLE is not needed for this claim pattern and READ COMMITTED with row locks is enough, or explains the trade-off",
+      "Recommends idle_in_transaction_session_timeout (and statement_timeout or lock_timeout) set per role, database or session rather than globally in postgresql.conf"
+    ]
+  },
+  {
+    "id": "jsonb-index-not-used",
+    "query": "PostgreSQL 18. events.payload is a json column with 30M rows. I created CREATE INDEX events_payload_idx ON events USING gin (payload); and it failed, so I changed the column to jsonb and recreated the GIN index. Now SELECT * FROM events WHERE payload->>'type' = 'signup' is still a sequential scan, and so is WHERE payload @> '{\"user\": {\"id\": 42}}' combined with an OR on another column. What index and query shape should I use?",
+    "files": [],
+    "expected_behavior": [
+      "Explains that a GIN index on the jsonb column supports containment operators such as @> on that column, not payload->>'type' = ..., and rewrites the filter as payload @> '{\"type\": \"signup\"}' or adds an expression index on (payload->>'type')",
+      "Recommends the jsonb_path_ops operator class for an index used only for @> queries, as smaller and faster than the default jsonb_ops",
+      "States the operator must apply to the indexed expression itself for the planner to use the index",
+      "Suggests checking the plan with EXPLAIN (ANALYZE) after running ANALYZE so statistics are current"
+    ]
+  }
+]
