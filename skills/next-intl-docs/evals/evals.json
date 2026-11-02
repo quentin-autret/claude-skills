@@ -1,0 +1,43 @@
+[
+  {
+    "query": "Add locale-prefixed routing (/en, /de) to my Next.js 16 App Router app with next-intl 4. I want every page to stay statically rendered. Show the files I need.",
+    "files": [],
+    "expected_behavior": [
+      "Creates src/i18n/routing.ts with defineRouting and moves layouts and pages under app/[locale]/",
+      "Puts createMiddleware(routing) from next-intl/middleware in src/proxy.ts (not middleware.ts) with a matcher that skips api, _next, _vercel and paths with dots",
+      "Reads the locale in i18n/request.ts with rootParams.locale() from next/root-params, validates it with hasLocale(routing.locales, ...) and calls notFound() otherwise, mentioning experimental.rootParams for Next.js before 16.3",
+      "Adds generateStaticParams returning routing.locales.map((locale) => ({locale})) and does not require setRequestLocale in every page and layout",
+      "Creates src/i18n/navigation.ts with createNavigation(routing) and imports Link from there instead of next/link"
+    ]
+  },
+  {
+    "query": "My next-intl client bundle is huge and Lighthouse flags INP. The root layout is:\n\n```tsx\nexport default async function RootLayout({children}) {\n  return (\n    <html><body>\n      <NextIntlClientProvider onError={(e) => console.error(e)}>{children}</NextIntlClientProvider>\n    </body></html>\n  );\n}\n```\n\nIt also throws 'Functions cannot be passed directly to Client Components'. Fix both problems.",
+    "files": [],
+    "expected_behavior": [
+      "Explains that a NextIntlClientProvider without a messages prop passes all messages to the client, and limits them with messages={pick(messages, ...)} or messages={null}",
+      "Recommends translating in Server Components and passing labels as props or children to Client Components where possible",
+      "Explains that onError (and getMessageFallback) are not serializable and moves them into a separate 'use client' provider component nested inside the server-rendered NextIntlClientProvider",
+      "Does not tell the user to pass locale and all messages manually to the provider as the fix"
+    ]
+  },
+  {
+    "query": "These next-intl messages fail or render wrongly. Fix the messages and the calling code.\n\n```json\n{\n  \"Cart.summary\": \"You have {item-count, plural, one {# item} other {# items}}\",\n  \"greeting\": \"{region, select, en-GB {Cheers} en-US {Hi}}\",\n  \"intro\": \"Line one<br/>line two, see <link href=\\\"/terms\\\">terms</link>\"\n}\n```\n\n```tsx\nconst t = useTranslations();\n<p>{t('Cart.summary', {'item-count': n})}</p>\n<p>{t('greeting', {region: locale})}</p>\n<p dangerouslySetInnerHTML={{__html: t.raw('intro')}} />\n```",
+    "files": [],
+    "expected_behavior": [
+      "Nests the dotted key into {\"Cart\": {\"summary\": ...}} because keys cannot contain dots",
+      "Renames item-count to an underscore or alphanumeric argument name because dashes are not supported",
+      "Rewrites select values as en_GB and en_US, passes locale.replaceAll('-', '_'), and adds the required other case",
+      "Writes <br></br> with a closing tag and moves the href out of the message into a t.rich handler, replacing t.raw with dangerouslySetInnerHTML (or at least requiring sanitization)"
+    ]
+  },
+  {
+    "query": "In my next-intl app with localePrefix 'as-needed', the language switcher uses <Link href={pathname} locale=\"de\"> and a Server Action calls redirect('/dashboard') from next/navigation after login. Users land on the wrong language and TypeScript complains the user may be undefined after the redirect. What should change?",
+    "files": [],
+    "expected_behavior": [
+      "Switches locales with useRouter().replace(pathname, {locale}) and usePathname from the project's createNavigation module, noting that <Link locale> always adds a prefix, takes a redirect detour with as-needed and is not prefetched",
+      "Uses redirect from the createNavigation module with an explicit locale: redirect({href: '/dashboard', locale})",
+      "Writes return redirect(...) because TypeScript does not narrow after redirect",
+      "Passes the locale explicitly to getTranslations({locale, namespace}) in the Server Action if messages are needed"
+    ]
+  }
+]
