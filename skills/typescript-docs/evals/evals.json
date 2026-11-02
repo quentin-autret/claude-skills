@@ -1,0 +1,64 @@
+{
+  "skill_name": "typescript-docs",
+  "evals": [
+    {
+      "id": 1,
+      "query": "We just bumped typescript from 5.9 to 6.0 in our Node.js service. tsc now prints a lot of errors like \"Cannot find name 'process'\" and deprecation errors, and the build output moved from dist/index.js to dist/src/index.js. Here is our tsconfig.json. Fix it for 6.0 without silencing anything, and update the import below if needed.\n\n```json\n{\n  \"compilerOptions\": {\n    \"target\": \"es5\",\n    \"downlevelIteration\": true,\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"esModuleInterop\": false,\n    \"baseUrl\": \"./src\",\n    \"paths\": { \"@lib/*\": [\"lib/*\"] },\n    \"outDir\": \"dist\"\n  },\n  \"include\": [\"src\"]\n}\n```\n\n```ts\nimport * as express from \"express\";\n```",
+      "files": [],
+      "expected_behavior": [
+        "Adds an explicit types array such as \"types\": [\"node\"], explaining that types defaults to [] in 6.0",
+        "Sets \"rootDir\": \"./src\" (or \"src\"), explaining that rootDir defaults to the tsconfig directory in 6.0",
+        "Removes baseUrl and rewrites the paths entry with a relative prefix, such as \"@lib/*\": [\"./src/lib/*\"]",
+        "Replaces moduleResolution node with nodenext (for example via module nodenext) or bundler, not node10",
+        "Raises target to es2015 or newer and removes downlevelIteration",
+        "Removes esModuleInterop false (it cannot be false in 6.0) and rewrites the import as import express from \"express\"",
+        "Does not rely on ignoreDeprecations as the fix, or presents it only as a temporary stopgap that 7.0 will not accept"
+      ]
+    },
+    {
+      "id": 2,
+      "query": "I am writing a small utility library in TypeScript that will be published to npm and used both from Node.js and from bundlers. Source is in src/, with src/index.ts importing './utils'. I also use a tsconfig path alias '@/' for src. Give me the tsconfig.json and the package.json fields (type, exports, types) I need, and tell me what to change in the source.",
+      "files": [],
+      "expected_behavior": [
+        "Recommends module node18 (or another Node mode such as nodenext) rather than moduleResolution bundler for a published library",
+        "Rewrites relative imports with the runtime extension, such as './utils.js'",
+        "Says to drop the paths alias in a published library because paths does not rewrite emitted imports, and suggests relative imports or package.json imports instead",
+        "Sets declaration (with rootDir src and an outDir such as dist) so the package ships .d.ts files",
+        "Lists the types condition first inside each exports condition block",
+        "Enables strict and verbatimModuleSyntax for the library"
+      ]
+    },
+    {
+      "id": 3,
+      "query": "We want to run our TypeScript files directly with Node's built-in type stripping, without a build step, while still type checking with tsc in CI. This file fails at runtime:\n\n```ts\nimport { Logger } from \"./logger\";\nexport enum Level { Info, Warn }\nexport class Service {\n  constructor(private logger: Logger) {}\n}\n```\n\nRewrite the file so it works under type stripping and give the tsconfig.json flags that make tsc catch these problems.",
+      "files": [],
+      "expected_behavior": [
+        "Enables erasableSyntaxOnly and explains it reports enums and parameter properties",
+        "Replaces the enum with a const object plus as const (or a union type), not a const enum",
+        "Replaces the constructor parameter property with an explicit field declaration and an assignment in the constructor",
+        "Writes the import with an explicit extension that the runtime resolves, such as './logger.ts', with allowImportingTsExtensions and noEmit (or rewriteRelativeImportExtensions when emitting)",
+        "Uses import type for Logger if it is only a type, and recommends verbatimModuleSyntax alongside erasableSyntaxOnly"
+      ]
+    },
+    {
+      "id": 4,
+      "query": "In TypeScript 6.0, why is `scores` still typed (number | undefined)[] here, and how should I write it so it becomes number[]?\n\n```ts\nconst scores = rawScores.map(parseScore).filter(score => !!score);\n```",
+      "files": [],
+      "expected_behavior": [
+        "Explains that TypeScript infers type predicates from filter callbacks, but only with if-and-only-if semantics",
+        "Explains that !!score does not infer a predicate because 0 is falsy, so the truthiness filter would also drop zero scores",
+        "Rewrites the callback as score => score !== undefined so it infers number[] without a hand-written is guard",
+        "Does not recommend a type assertion or a hand-written predicate as the primary fix, or notes that a hand-written predicate is unchecked"
+      ]
+    },
+    {
+      "id": 5,
+      "query": "How do I add type hints to a Python function and check them with mypy in strict mode?",
+      "files": [],
+      "expected_behavior": [
+        "Does not load or apply the typescript-docs skill, because the task is about Python and mypy",
+        "Answers with Python type hints and mypy options, not tsconfig or TypeScript syntax"
+      ]
+    }
+  ]
+}
