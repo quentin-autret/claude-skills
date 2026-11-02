@@ -1,0 +1,41 @@
+[
+  {
+    "id": 1,
+    "query": "Please review this Node.js script and list the bugs with fixes:\n\n```js\nconst fs = require('node:fs');\nconst { exec } = require('node:child_process');\n\nasync function run(name, dest) {\n  if (fs.existsSync(dest)) {\n    console.error('exists');\n    process.exit(1);\n  }\n  exec(`convert ${name} out.png`, (err, stdout) => {\n    if (err.message.includes('not found')) console.log('missing tool');\n    fs.createReadStream('out.png').pipe(fs.createWriteStream(dest));\n  });\n}\n\nprocess.on('uncaughtException', (e) => console.error(e));\n```",
+    "files": [],
+    "expected_behavior": [
+      "Flags the existsSync-then-write pattern as a TOCTOU race and recommends opening/writing directly with the 'wx' flag and handling err.code === 'EEXIST'",
+      "Flags that interpolating `name` into `exec()` allows shell command injection and recommends execFile() or spawn() without a shell, passing arguments as an array",
+      "Notes that branching on `err.message` is fragile (and `err` is null on success) and recommends checking `err` first and branching on `err.code` (for example ENOENT)",
+      "Recommends `pipeline()` from node:stream/promises instead of `.pipe()`, because with `.pipe()` an erroring source does not close the destination, and streams without an 'error' listener crash the process",
+      "Warns that an 'uncaughtException' handler that only logs and carries on leaves the process in an undefined state: do synchronous cleanup and exit (or use 'uncaughtExceptionMonitor' just to log); with a handler and no exitCode the process exits with 0",
+      "Recommends setting `process.exitCode = 1` and letting the loop drain instead of `process.exit(1)`, which can truncate pending stdout writes"
+    ]
+  },
+  {
+    "id": 2,
+    "query": "I run a public-facing Node.js `http.createServer()` directly on the internet (no reverse proxy). Slow clients keep tying up connections and deploys hang for a long time on shutdown. Which server timeouts and limits should I look at, what are their defaults, and how should I do a graceful shutdown on SIGTERM with a modern Node version? Also, in my handler I build the URL with `url.parse(req.url, true)` and use the Host header as the base for absolute links; is that OK?",
+    "files": [],
+    "expected_behavior": [
+      "Says to keep `headersTimeout` and `requestTimeout` non-zero when there is no reverse proxy, since they guard against slow-client DoS and answer 408 without calling the handler; gives the requestTimeout default of 300000 ms and that headersTimeout defaults to min(requestTimeout, 60000)",
+      "States that `server.timeout` (socket inactivity) defaults to 0, meaning no timeout, and that once a 'timeout' listener is added the code must destroy the socket itself",
+      "Recommends setting `keepAliveTimeout` explicitly (the docs list 5000 ms on the property but 65000 ms on the createServer option) and mentions `maxHeadersCount` (default 1000) and `maxRequestsPerSocket` (default 0, unlimited)",
+      "Explains graceful shutdown: `server.close()` stops accepting and closes idle keep-alive connections (since v19) and waits for active ones, so `closeIdleConnections()` is redundant; `closeAllConnections()` forces the rest but does not close upgraded sockets; mentions `await using server` / `Symbol.asyncDispose`",
+      "Says `url.parse()` is deprecated (DEP0169, no CVEs are issued for it) and recommends the WHATWG `new URL(req.url, origin)`",
+      "Warns not to build the URL base from the unvalidated Host header and to use a configured origin instead"
+    ]
+  },
+  {
+    "id": 3,
+    "query": "We want to modernize a small Node.js service so it uses as few dependencies as possible. Is it OK to: (a) replace dotenv with a built-in, (b) write the service in TypeScript with enums and tsconfig path aliases and run it directly with `node`, (c) use `node:test` with nested subtests, and (d) run it under the permission model to protect us from a third-party plugin that might be malicious? Also, our package is CommonJS and wants to `require()` a dependency that became ESM-only.",
+    "files": [],
+    "expected_behavior": [
+      "Recommends `node --env-file=.env` (or `--env-file-if-exists`, stable since v24.10.0) or `process.loadEnvFile()`, and notes that real environment variables win over file values, values are always strings, and `--env-file` values do not reach scripts run through `node --run`",
+      "Explains type stripping runs .ts files without type checking and ignores tsconfig: `enum` (and parameter properties, runtime namespaces) throw ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX, tsconfig `paths` do not work so use package.json `imports` with `#` keys, relative imports need explicit .ts extensions, and type-only imports need `import type`",
+      "Notes type stripping is stable since v25.2.0 (backported to v24.12.0), so the Node version should be checked or `process.features.typescript` feature-detected",
+      "Says to `await t.test(...)` for subtests in node:test, otherwise outstanding subtests are cancelled and failed",
+      "Warns that the Permission Model is a seat belt for trusted code, not a sandbox, and must not be relied on to contain a malicious plugin; recommends OS-level isolation such as containers or separate OS users",
+      "Explains that `require()` of ESM is stable and works when the graph is synchronous, returning the namespace (default under `.default`), but top-level `await` anywhere in the graph throws ERR_REQUIRE_ASYNC_MODULE, in which case use dynamic `import()`"
+    ]
+  }
+]
