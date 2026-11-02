@@ -1,0 +1,55 @@
+[
+  {
+    "query": "My tokio server shares a HashMap between connection tasks. I switched from std::sync::Mutex to tokio::sync::Mutex because tokio::spawn complained that the future cannot be sent between threads safely, even though I call drop(guard) before the .await. Is that the right fix?",
+    "files": [],
+    "expected_behavior": [
+      "Explains that std::sync::MutexGuard is not Send and that drop(guard) does not help because the compiler computes Send from scopes, so the guard must end in a block scope before the .await",
+      "Recommends keeping std::sync::Mutex for plain data that is never locked across .await, for example by locking inside a non-async method of a wrapper struct",
+      "States that tokio::sync::Mutex is for guards held across .await (such as I/O resources) and usually does not improve performance",
+      "Mentions sharding or a task owning the state as the fix for real contention",
+      "Cites https://tokio.rs/tokio/tutorial/shared-state"
+    ]
+  },
+  {
+    "query": "Review this loop: loop { tokio::select! { _ = socket.read_exact(&mut header) => handle(&header), _ = tx.send(event) => {}, _ = tokio::time::sleep(Duration::from_secs(30)) => break } }. Sometimes messages vanish and the 30 second timeout never fires.",
+    "files": [],
+    "expected_behavior": [
+      "Identifies read_exact as not cancel safe, so partial header bytes are lost when another branch wins",
+      "Identifies mpsc::Sender::send in a losing branch as dropping the message, and recommends reserve() then Permit::send",
+      "Explains that the sleep is recreated on every iteration, and recommends creating it once outside the loop, pinning it with tokio::pin! and selecting on &mut sleep",
+      "Suggests merging the sources into one stream or moving the non-cancel-safe read out of select!",
+      "Cites https://docs.rs/tokio/latest/tokio/macro.select.html"
+    ]
+  },
+  {
+    "query": "I built a runtime with tokio::runtime::Builder::new_current_thread().build() for a sync library wrapper and call rt.block_on(tokio::time::sleep(d)) and TcpStream::connect through it. It panics. Also, tasks I spawn on it never progress between calls. What is wrong?",
+    "files": [],
+    "expected_behavior": [
+      "Explains that a Builder runtime has no I/O or time driver and must call enable_all()",
+      "Explains that sleep(d) passed directly to block_on is created outside the runtime and should be wrapped in an async block",
+      "Explains that a current-thread runtime runs spawned tasks only while Runtime::block_on runs, and suggests a multi-thread runtime or a runtime on its own thread fed by mpsc for background work",
+      "Cites https://docs.rs/tokio/latest/tokio/runtime/index.html and https://tokio.rs/tokio/topics/bridging"
+    ]
+  },
+  {
+    "query": "Write a Windows named pipe server with tokio that accepts many clients concurrently, plus a client that connects to it reliably.",
+    "files": [],
+    "expected_behavior": [
+      "Creates the first instance with ServerOptions::new().first_pipe_instance(true)",
+      "Creates the next server instance before spawning a task for the connected one, so a server instance always exists",
+      "Makes the client retry on ERROR_PIPE_BUSY with a short sleep, and treats NotFound as no server",
+      "Cites https://docs.rs/tokio/latest/tokio/net/windows/named_pipe/struct.NamedPipeServer.html"
+    ]
+  },
+  {
+    "query": "My tokio test for a retry with exponential backoff takes 40 seconds because of the sleeps. How do I make it instant and reliable?",
+    "files": [],
+    "expected_behavior": [
+      "Recommends #[tokio::test(start_paused = true)] and notes that it needs the test-util feature and a current-thread runtime",
+      "Explains auto-advance: with time paused and no other work ready, the clock jumps to the next timer",
+      "Uses tokio::time::Instant, not std::time::Instant, for measuring elapsed time under paused time",
+      "Prefers sleep with auto-advance over time::advance to force timeouts in order",
+      "Cites https://docs.rs/tokio/latest/tokio/time/fn.pause.html or https://tokio.rs/tokio/topics/testing"
+    ]
+  }
+]
