@@ -1,0 +1,61 @@
+{
+  "skill_name": "prisma-docs",
+  "evals": [
+    {
+      "id": 1,
+      "query": "I just bumped prisma and @prisma/client from 6.16 to 7 in my Node + PostgreSQL API. My schema has `generator client { provider = \"prisma-client-js\" }` and `datasource db { provider = \"postgresql\" url = env(\"DATABASE_URL\") }`, and my code does `import { PrismaClient } from '@prisma/client'; export const prisma = new PrismaClient();`. Nothing works anymore. What exactly do I have to change?",
+      "files": [],
+      "expected_behavior": [
+        "Switches the generator to provider = \"prisma-client\" with an explicit output path, and imports PrismaClient from that generated output instead of @prisma/client",
+        "Moves the connection URL out of the schema datasource into prisma.config.ts (defineConfig, datasource.url)",
+        "Installs @prisma/adapter-pg and passes new PrismaPg({ connectionString }) as the adapter to new PrismaClient({ adapter })",
+        "Says that .env is no longer loaded automatically and adds import \"dotenv/config\" (or an equivalent explicit loading)",
+        "Says that prisma generate must be run explicitly, since migrate dev no longer runs it",
+        "Cites prisma.io/docs URLs such as https://www.prisma.io/docs/orm/v6/more/upgrades/to-v7"
+      ]
+    },
+    {
+      "id": 2,
+      "query": "In my Prisma 7 admin endpoint I wrote `await prisma.session.deleteMany({ where: { userId: req.query.userId } })`. A colleague called it without the query parameter and every session in the table got deleted. Why did that happen and how do I stop it from happening again?",
+      "files": [],
+      "expected_behavior": [
+        "Explains that undefined in a where filter means no filter, so deleteMany matched every row",
+        "Recommends enabling the strictUndefinedChecks preview feature so an explicit undefined throws, with Prisma.skip to omit a field on purpose",
+        "Also recommends validating the input before the query",
+        "Cites https://www.prisma.io/docs/orm/v7/prisma-client/special-fields-and-types/null-and-undefined"
+      ]
+    },
+    {
+      "id": 3,
+      "query": "I renamed `bio` to `biography` on my Prisma model `Profile` and `prisma migrate dev` generated a migration that drops the column. The table has production data. How should I do this rename with Prisma Migrate, and how do I ship it to production?",
+      "files": [],
+      "expected_behavior": [
+        "Explains that Migrate generates a rename as DROP plus ADD, which loses data",
+        "Uses prisma migrate dev --create-only, then edits migration.sql to ALTER TABLE ... RENAME COLUMN, then applies it with migrate dev",
+        "Ships to production with prisma migrate deploy, never migrate dev, db push or migrate reset",
+        "Mentions the expand and contract approach when the running app still reads the old column during the deploy",
+        "Cites https://www.prisma.io/docs/orm/v7/prisma-migrate/workflows/customizing-migrations"
+      ]
+    },
+    {
+      "id": 4,
+      "query": "My Prisma 7 app connects to Postgres through PgBouncer in transaction mode. Queries work, but `prisma migrate deploy` in CI fails with `prepared statement \"s0\" already exists`. How should the connection strings be set up?",
+      "files": [],
+      "expected_behavior": [
+        "Explains that Prisma Migrate needs a direct database connection and breaks behind PgBouncer",
+        "Points the CLI at a direct URL through datasource.url in prisma.config.ts, and keeps the pooled URL for the driver adapter used by the app",
+        "Does not tell to put directUrl in the schema datasource block",
+        "Cites https://www.prisma.io/docs/orm/v7/prisma-client/setup-and-configuration/databases-connections/pgbouncer"
+      ]
+    },
+    {
+      "id": 5,
+      "query": "I'm using Drizzle ORM with node-postgres. How do I write a query that selects users with more than 5 orders, using Drizzle's query builder?",
+      "files": [],
+      "expected_behavior": [
+        "Answers with Drizzle ORM APIs only",
+        "Does not bring in Prisma Client, schema.prisma or Prisma Migrate"
+      ]
+    }
+  ]
+}
