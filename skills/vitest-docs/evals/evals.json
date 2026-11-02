@@ -1,0 +1,40 @@
+[
+  {
+    "query": "Port this Jest test file to Vitest 5. Keep the same behavior.\n\n```js\nconst { fetchUser } = require('./api')\nconst { getName } = require('./user')\n\ndescribe('getName', () => {\n  beforeEach(() => {\n    jest.mock('./api', () => ({ ...jest.requireActual('./api'), fetchUser: jest.fn() }))\n  })\n\n  test.each([[1, 'Ada'], [2, 'Linus']])('user %i is %s', (id, name, done) => {\n    fetchUser.mockResolvedValue({ id, name })\n    getName(id).then((result) => {\n      expect(result).toBe(name)\n      done()\n    })\n  })\n})\n```",
+    "files": [],
+    "expected_behavior": [
+      "Moves vi.mock to the module top level, because Vitest 5 throws when vi.mock is called inside a hook or test (or uses vi.doMock with a dynamic import instead)",
+      "Replaces jest.requireActual with an async factory that awaits vi.importActual (or importOriginal)",
+      "Drops the done callback and writes an async test that awaits the assertion",
+      "Uses test.for (or test.each with correct argument handling) and imports test, expect, vi, describe from 'vitest' since globals are off by default"
+    ]
+  },
+  {
+    "query": "After upgrading from Vitest 4 to Vitest 5, this test started failing with 'expected spy to be called 1 times, but got 0 times'. Why, and what is the minimal fix?\n\n```ts\nimport { expect, test, vi, beforeAll } from 'vitest'\nimport { logger } from './logger'\nimport { init } from './init'\n\nconst spy = vi.spyOn(logger, 'info')\n\nbeforeAll(() => {\n  init()\n})\n\ntest('init logs once', () => {\n  expect(spy).toHaveBeenCalledTimes(1)\n})\n```",
+    "files": [],
+    "expected_behavior": [
+      "Explains that clearMocks now defaults to true in Vitest 5, so call history recorded in beforeAll (or at top level or in setup files) is cleared before each test",
+      "Proposes moving init() into the test (or beforeEach) and asserting there, or setting clearMocks: false in the config as the escape hatch",
+      "Does not blame vi.spyOn on ESM namespaces or invent another cause"
+    ]
+  },
+  {
+    "query": "This test hangs or reports an unhandled rejection with fake timers in Vitest 5. Fix it.\n\n```ts\nimport { expect, test, vi } from 'vitest'\nimport { retryWithBackoff } from './retry'\n\ntest('gives up after 3 attempts', async () => {\n  vi.useFakeTimers()\n  const promise = retryWithBackoff(() => Promise.reject(new Error('down')), 3)\n  await vi.runAllTimersAsync()\n  expect(promise).rejects.toThrow('down')\n})\n```",
+    "files": [],
+    "expected_behavior": [
+      "Creates the rejects assertion before advancing the timers (const assertion = expect(promise).rejects.toThrow('down'), then advance timers, then await assertion) so the rejection is handled",
+      "Awaits the rejects assertion, noting that an unawaited .rejects fails the test in Vitest 5",
+      "Restores real timers after the test (vi.useRealTimers in the test, afterEach, or a cleanup) or relies on config that does so"
+    ]
+  },
+  {
+    "query": "Set up Vitest 5 browser mode with Playwright on Chromium for a React project, and write one component test for a <Counter /> that increments when its 'Increment' button is clicked.",
+    "files": [],
+    "expected_behavior": [
+      "Installs and imports the provider from @vitest/browser-playwright and passes playwright() as browser.provider, with browser.enabled and browser.instances [{ browser: 'chromium' }]",
+      "Renders with vitest-browser-react and queries with page.getByRole or the screen returned by render, not document.querySelector",
+      "Asserts with await expect.element(...) (retrying assertion), not a plain synchronous expect on the DOM",
+      "Clicks through the locator (await ....click()) or userEvent from vitest/browser"
+    ]
+  }
+]
