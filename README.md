@@ -6,7 +6,34 @@ Each skill is built from the vendor's own docs, never from model memory. Every c
 
 ## Skills
 
-No skill published yet.
+| Skill | Covers |
+| :-- | :-- |
+| [bullmq-docs](skills/bullmq-docs/) | BullMQ 6.x |
+| [clamav-docs](skills/clamav-docs/) | ClamAV 1.5 |
+| [eslint-docs](skills/eslint-docs/) | ESLint 10 |
+| [grafana-cloud-docs](skills/grafana-cloud-docs/) | Grafana Cloud |
+| [javascript-docs](skills/javascript-docs/) | JavaScript (MDN) |
+| [jest-docs](skills/jest-docs/) | Jest 30.5 |
+| [nestjs-docs](skills/nestjs-docs/) | NestJS 12 |
+| [next-intl-docs](skills/next-intl-docs/) | next-intl 4 |
+| [nextjs-docs](skills/nextjs-docs/) | Next.js 16.4 (App Router) |
+| [nodejs-docs](skills/nodejs-docs/) | Node.js 26 |
+| [opentelemetry-docs](skills/opentelemetry-docs/) | OpenTelemetry |
+| [playwright-docs](skills/playwright-docs/) | Playwright Test 1.64 |
+| [postgresql-docs](skills/postgresql-docs/) | PostgreSQL 18 |
+| [prisma-docs](skills/prisma-docs/) | Prisma ORM 7 |
+| [react-docs](skills/react-docs/) | React 19.3 |
+| [redis-docs](skills/redis-docs/) | Redis Open Source 8.10 |
+| [rust-std-docs](skills/rust-std-docs/) | Rust standard library 1.99 |
+| [semgrep-docs](skills/semgrep-docs/) | Semgrep |
+| [socketio-docs](skills/socketio-docs/) | Socket.IO 4.8 |
+| [tailwindcss-docs](skills/tailwindcss-docs/) | Tailwind CSS 4 |
+| [tauri-docs](skills/tauri-docs/) | Tauri 2 |
+| [tokio-docs](skills/tokio-docs/) | tokio 1.54 |
+| [typescript-docs](skills/typescript-docs/) | TypeScript 6.0 |
+| [typesense-docs](skills/typesense-docs/) | Typesense 30.2 |
+| [vite-docs](skills/vite-docs/) | Vite 8 |
+| [vitest-docs](skills/vitest-docs/) | Vitest 5 |
 
 ## Layout
 
