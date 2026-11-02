@@ -1,0 +1,62 @@
+{
+  "skill_name": "jest-docs",
+  "evals": [
+    {
+      "id": 1,
+      "query": "We are moving our test suite from Jest 29 to Jest 30. Here is a typical test file and our npm script. Rewrite them so they work on Jest 30 and list anything else we must check before upgrading.\n\npackage.json script: \"test:unit\": \"jest --testPathPattern=unit --maxWorkers\"\n\n```js\nconst mockFs = jest.genMockFromModule('fs');\njest.mock('./Utils.js'); // the file on disk is utils.js\nconst {load} = require('./loader');\n\ntest('loads', () => {\n  const spy = jest.fn();\n  load(spy);\n  expect(spy).toBeCalledWith('a');\n  expect(spy).lastCalledWith('b');\n  expect(() => load(null)).toThrowError('no callback');\n});\n```",
+      "files": [],
+      "expected_behavior": [
+        "Replaces toBeCalledWith with toHaveBeenCalledWith and lastCalledWith with toHaveBeenLastCalledWith, saying the alias matchers are removed in Jest 30",
+        "Replaces toThrowError with toThrow",
+        "Replaces jest.genMockFromModule with jest.createMockFromModule",
+        "Renames --testPathPattern to --testPathPatterns",
+        "Gives --maxWorkers an explicit value, since Jest 30 rejects flags that require an argument when none is given",
+        "Fixes the jest.mock path to the real case (./utils.js), since jest.mock is case-sensitive in Jest 30",
+        "Mentions the new minimums: Node 18 and TypeScript 5.4"
+      ]
+    },
+    {
+      "id": 2,
+      "query": "Our Node project is native ESM (\"type\": \"module\" in package.json, no Babel). service.js imports { query } from './db.js'. Write a Jest test for service.js that replaces query with a mock returning [] and tell me how to run it.",
+      "files": [],
+      "expected_behavior": [
+        "Runs Jest with node --experimental-vm-modules (for example through NODE_OPTIONS)",
+        "Imports jest from @jest/globals (or uses import.meta.jest) instead of relying on the global jest object",
+        "Mocks the dependency with jest.unstable_mockModule and a required factory, not jest.mock",
+        "Imports service.js with a dynamic await import() after registering the mock, not with a static import at the top",
+        "Does not claim that a second jest.unstable_mockModule call on an already imported module overrides it"
+      ]
+    },
+    {
+      "id": 3,
+      "query": "I have a function retryFetch(url) that awaits fetch(url) and, on failure, waits 1000 ms with setTimeout before trying again, up to 3 tries. Write a Jest test that checks it makes 3 calls when fetch always rejects, without the test actually waiting 2 seconds.",
+      "files": [],
+      "expected_behavior": [
+        "Uses jest.useFakeTimers() (modern fake timers)",
+        "Advances time with jest.advanceTimersByTimeAsync or jest.runAllTimersAsync so promise callbacks run between timers, not with the sync advanceTimersByTime alone",
+        "Restores real timers after the test (jest.useRealTimers in afterEach or equivalent)",
+        "Asserts the call count with toHaveBeenCalledTimes(3), not a removed alias"
+      ]
+    },
+    {
+      "id": 4,
+      "query": "Write a Vitest unit test with vi.mock for a module that exports a getUser function.",
+      "files": [],
+      "expected_behavior": [
+        "Does not load or apply the jest-docs skill, because the task is about Vitest",
+        "Answers with Vitest APIs (vi.mock, vi.fn) rather than jest.mock"
+      ]
+    },
+    {
+      "id": 5,
+      "query": "We are on Jest 30.5 with TypeScript 5.4. In a test of loadProfiles(ids), the injected fetchUser mock must resolve {id: 1} when called with 1 and reject new Error('not found') when called with 2. The test must also set process.env.API_URL to 'http://localhost' and spy on console.error, and both must be undone automatically when the test ends. Write the test, typing the spy explicitly.",
+      "files": [],
+      "expected_behavior": [
+        "Configures the mock per argument with fetchUser.whenCalledWith(1).mockResolvedValue(...) and fetchUser.whenCalledWith(2).mockRejectedValue(...), rather than branching inside mockImplementation",
+        "Replaces the environment with jest.replaceProperty(process, 'env', ...) rather than assigning process.env by hand",
+        "Restores the spy automatically, with using spy = jest.spyOn(console, 'error') or jest.restoreAllMocks / the restoreMocks option",
+        "Types the spy with jest.Spied (or jest.SpiedFunction), never with the removed jest.SpyInstance, not even as an alternative"
+      ]
+    }
+  ]
+}
