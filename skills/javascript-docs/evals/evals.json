@@ -1,0 +1,53 @@
+[
+  {
+    "id": 1,
+    "query": "Please review this JavaScript for bugs and suggest fixes:\n\n```js\nconst DEFAULTS = { retries: 3 };\nconst wordRe = /error/g;\n\nfunction retryCount(opts) {\n  return opts.retries || DEFAULTS.retries;\n}\n\nfunction sortScores(scores) {\n  return scores.sort();\n}\n\nfunction flagged(lines) {\n  return lines.filter((l) => wordRe.test(l));\n}\n\nasync function saveAll(items, db) {\n  items.forEach(async (item) => {\n    await db.save(item);\n  });\n  console.log('all saved');\n}\n```",
+    "files": [],
+    "expected_behavior": [
+      "Flags that `opts.retries || DEFAULTS.retries` replaces a legitimate 0 with the default, and recommends `??`, which only replaces null and undefined",
+      "Flags that default `sort()` compares elements as strings (for example [1, 30, 4, 21, 100000] becomes [1, 100000, 21, 30, 4]) and suggests a numeric comparator such as `(a, b) => a - b`",
+      "Notes that `sort()` mutates the input array and returns the same array, and suggests `toSorted()` or copying first",
+      "Identifies that the shared `/error/g` regex keeps `lastIndex` between `test()` calls, so later lines can be wrongly skipped; suggests removing the `g` flag or creating the regex per call",
+      "Explains that `forEach` does not await async callbacks, so 'all saved' logs before saving finishes, and recommends `for...of` with `await` (or promise composition such as `Promise.all` with `map`)"
+    ]
+  },
+  {
+    "id": 2,
+    "query": "My API returns JSON like {\"id\": 12345678901234567890, \"name\": \"order\"}. In my client I do `const data = JSON.parse(text); console.log(data.id);` and the id is wrong. I also need to send the same id back with JSON.stringify without it changing. What is going on and how should I do this in modern JavaScript?",
+    "files": [],
+    "expected_behavior": [
+      "Explains that JavaScript numbers are 64-bit floats and integers are exact only up to 2^53-1, so the parsed id is rounded (12345678901234567890 becomes 12345678901234568000)",
+      "Explains that a reviver function runs after the number has already been parsed, so precision is already lost by then",
+      "Suggests the reviver's third `context` argument and its `context.source` property to recover the exact original digits, for example by building a BigInt from it",
+      "Notes that `JSON.stringify` throws on BigInt values by default, so a BigInt id needs custom serialization",
+      "Suggests `JSON.rawJSON()` (for example from a BigInt `toJSON` or a replacer) to emit the exact number, and notes that `rawJSON` accepts primitives only",
+      "Offers the alternative of having the server send the id as a string and reviving it by key"
+    ]
+  },
+  {
+    "id": 3,
+    "query": "I'm scheduling a weekly 09:00 meeting for users in New York. Here is my code:\n\n```js\nlet start = new Date('2024-03-08T09:00:00-05:00');\nconst meetings = [];\nfor (let i = 0; i < 4; i++) {\n  meetings.push(new Date(start.getTime() + i * 7 * 24 * 60 * 60 * 1000));\n}\n```\n\nThe meetings after 10 March look an hour off for users. Fix it with current APIs, and also show how to compute how long it is until the next meeting.",
+    "files": [],
+    "expected_behavior": [
+      "Explains that the fixed offset -05:00 and 24-hour millisecond arithmetic ignore the daylight saving change (America/New_York moves to daylight time on 2024-03-10), and that a day is not always 24 hours",
+      "Recommends `Temporal.ZonedDateTime` with a named IANA zone such as `America/New_York`, not a fixed offset",
+      "Uses date arithmetic on the ZonedDateTime (for example `add({ weeks: 1 })`), which keeps the clock time across the DST change, instead of adding milliseconds",
+      "Warns that converting with `toPlainDateTime()` drops the zone, so later arithmetic ignores DST",
+      "Notes that `ZonedDateTime.from()` requires a `[zone]` annotation, and that a plain ISO string with an offset should be parsed through `Temporal.Instant.from()` then `toZonedDateTimeISO(zone)`",
+      "Mentions that `since()`/`until()` on ZonedDateTime default to hours, and that the elapsed time across a DST change can differ from the wall-clock difference (for example PT25H)"
+    ]
+  },
+  {
+    "id": 4,
+    "query": "Write a small Node.js helper that opens a file handle and a lock, reads the file, and guarantees both are released even if reading throws. Also, I have a comment field with a 20 character limit: `if (text.length > 20) reject()`. Users with emoji and flag characters complain it rejects text that looks short. Fix both with modern JavaScript.",
+    "files": [],
+    "expected_behavior": [
+      "Uses `await using` (and `using` for synchronous resources) so cleanup is tied to the scope, instead of manual try...finally",
+      "Notes that `await using` needs both awaits: one on acquisition and one that disposal is awaited, and that async cleanup should be implemented with `[Symbol.asyncDispose]` because a promise returned from `[Symbol.dispose]` is not awaited",
+      "Notes that disposers run in reverse declaration order, and that `DisposableStack`/`AsyncDisposableStack` can group resources, declared with `using`",
+      "Mentions that if the body and a disposer both throw, the result is a `SuppressedError` with `error` and `suppressed` properties",
+      "Explains that `String.prototype.length` counts UTF-16 code units, so an emoji counts 2 or more",
+      "Counts user-perceived characters with `Intl.Segmenter` using `granularity: \"grapheme\"`, and notes that even `[...str]` (code points) splits flags, skin tone and ZWJ emoji sequences"
+    ]
+  }
+]
