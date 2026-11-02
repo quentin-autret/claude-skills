@@ -1,0 +1,63 @@
+[
+  {
+    "query": "My Node.js Express service shows no HTTP spans in the backend, only a few manual spans named \"unknown_service\". The Collector runs locally and accepts OTLP/HTTP. Here is my setup, what is wrong?\n\n```js\n// app.js\nconst express = require('express')\nrequire('./instrumentation')\nconst app = express()\n```\n\n```js\n// instrumentation.js\nconst { NodeSDK } = require('@opentelemetry/sdk-node')\nconst { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-http')\nconst { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node')\nconst { SimpleSpanProcessor } = require('@opentelemetry/sdk-trace-base')\n\nconst exporter = new OTLPTraceExporter({ url: 'http://localhost:4318' })\nnew NodeSDK({\n  spanProcessors: [new SimpleSpanProcessor(exporter)],\n  instrumentations: [getNodeAutoInstrumentations()],\n}).start()\n```",
+    "files": [],
+    "expected_behavior": [
+      "Explains that the SDK must be initialized before any other module loads, so requiring express before the instrumentation file prevents it from being instrumented, and recommends loading the file with node --require (or --import for ESM) instead of requiring it from app.js",
+      "Points out that an explicit per-signal OTLP/HTTP url must include the /v1/traces path (http://localhost:4318/v1/traces), since only the base endpoint gets the path appended",
+      "Sets the service name (OTEL_SERVICE_NAME or a resource service.name) because unknown_service means it is missing",
+      "Replaces SimpleSpanProcessor with BatchSpanProcessor (or the SDK default) for production, SimpleSpanProcessor being for debugging"
+    ]
+  },
+  {
+    "query": "We scaled our OpenTelemetry Collector gateway to 3 replicas behind a Kubernetes Service and tail sampling now keeps incomplete traces: some spans of a kept trace are missing. Config excerpt:\n\n```yaml\nprocessors:\n  tail_sampling:\n    policies:\n      - name: errors\n        type: status_code\n        status_code: { status_codes: [ERROR] }\n  memory_limiter:\n    check_interval: 1s\n    limit_mib: 1024\nexporters:\n  logging: {}\n  otlp_grpc:\n    endpoint: backend:4317\nservice:\n  pipelines:\n    traces:\n      receivers: [otlp]\n      processors: [tail_sampling, memory_limiter]\n      exporters: [otlp_grpc, logging]\n```\n\nHow should this be fixed?",
+    "files": [],
+    "expected_behavior": [
+      "Explains that tail sampling is stateful and needs all spans of a trace on the same Collector instance, so 3 replicas behind a plain Service split traces",
+      "Proposes a first tier of Collectors using the load_balancing exporter with routing_key traceID in front of the tail-sampling Collectors",
+      "Moves memory_limiter to the first position of the pipeline",
+      "Replaces the deprecated logging exporter with the debug exporter",
+      "Does not claim tail_sampling is part of the core Collector distribution (it ships in contrib)"
+    ]
+  },
+  {
+    "query": "We set OTEL_PROPAGATORS=b3 on all our Python services so they can talk to an old Zipkin-instrumented service. Since then, traces from our Node.js services (default SDK config) are broken in two, and the user_email we put in baggage for debugging started showing up in third-party API logs. What happened and what should we change?",
+    "files": [],
+    "expected_behavior": [
+      "Explains that OTEL_PROPAGATORS replaces the whole list, so b3 alone drops the default tracecontext and baggage propagators, which breaks propagation with services that only speak W3C traceparent",
+      "Recommends listing all needed propagators, for example tracecontext,baggage,b3",
+      "Explains that baggage is propagated in headers on outgoing requests (automatic instrumentation included), so it can leak to third parties, and that credentials or PII such as an email must never be put in baggage",
+      "Does not suggest baggage is automatically added as span attributes without a processor that does it"
+    ]
+  },
+  {
+    "query": "On Kubernetes with the OpenTelemetry Operator, I created an Instrumentation resource and added the annotation instrumentation.opentelemetry.io/inject-java: \"true\" to my Deployment metadata. The pods restart but no agent is injected and no telemetry arrives. What do I check?",
+    "files": [],
+    "expected_behavior": [
+      "Says the annotation must go on the pod template (spec.template.metadata.annotations), not on the Deployment metadata",
+      "Says the Instrumentation resource must exist before the workload is deployed (or the pods must be restarted after creating it)",
+      "Says spec.exporter.endpoint must point to a reachable Collector, because the default endpoint does not reach one and data is dropped",
+      "Suggests checking the operator logs or the pod's init containers to confirm injection"
+    ]
+  },
+  {
+    "query": "I upgraded our OpenTelemetry Collector to the latest release and two things broke. First, Prometheus can no longer scrape the Collector's own metrics, although my config still has this:\n\n```yaml\nservice:\n  telemetry:\n    metrics:\n      address: 0.0.0.0:8888\n```\n\nSecond, apps in other containers can no longer reach the OTLP receiver, configured as:\n\n```yaml\nreceivers:\n  otlp:\n    protocols:\n      grpc:\n      http:\n```\n\nWhat changed and what is the right config now?",
+    "files": [],
+    "expected_behavior": [
+      "Explains that service::telemetry::metrics::address is no longer honored (ignored in recent releases) and replaces it with service::telemetry::metrics::readers using a pull reader with a Prometheus exporter on host and port 8888",
+      "Explains that recent Collector releases bind component servers to localhost by default instead of 0.0.0.0, so receivers without an explicit endpoint are unreachable from other containers",
+      "Sets explicit receiver endpoints on a reachable address (for example the pod IP through an environment variable, or 0.0.0.0 consciously) for ports 4317 and 4318, and mentions the security trade-off of binding to all interfaces",
+      "Does not invent a different cause such as a renamed otlp receiver"
+    ]
+  },
+  {
+    "query": "Our Java service uses the OpenTelemetry Java agent. We moved its configuration to a declarative YAML file passed with -Dotel.config.file, and now OTEL_SERVICE_NAME and OTEL_EXPORTER_OTLP_ENDPOINT set in the container seem ignored: data goes to localhost and the service is unknown. We also set schedule_delay: 5s in the YAML and startup logs an error. What is going on?",
+    "files": [],
+    "expected_behavior": [
+      "Explains that when a declarative configuration file is used, the regular OTEL_* environment variables are ignored, except those referenced in the file through ${VAR} substitution",
+      "Shows referencing them in the file, for example with ${OTEL_SERVICE_NAME} or ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4318} syntax",
+      "Explains that durations in the declarative file are integers in milliseconds, so schedule_delay must be 5000 rather than 5s",
+      "Mentions that declarative configuration in the Java agent is experimental or recent and needs a recent agent version"
+    ]
+  }
+]
