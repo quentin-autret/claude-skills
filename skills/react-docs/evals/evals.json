@@ -1,0 +1,56 @@
+{
+  "skill_name": "react-docs",
+  "evals": [
+    {
+      "id": 1,
+      "query": "Review this React 19.3 component and rewrite it the way the React docs recommend. It reconnects to the chat every time the theme changes, and the filtered list sometimes flashes stale data.\n\n```jsx\nfunction ChatRoom({ roomId, theme, messages, query }) {\n  const [visible, setVisible] = useState([]);\n  useEffect(() => {\n    setVisible(messages.filter(m => m.text.includes(query)));\n  }, [messages, query]);\n\n  const ignore = useRef(false);\n  useEffect(() => {\n    if (ignore.current) return;\n    ignore.current = true;\n    const connection = createConnection(serverUrl, roomId);\n    connection.on('connected', () => {\n      showNotification('Connected!', theme);\n    });\n    connection.connect();\n    // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [roomId, theme]);\n\n  return <List items={visible} />;\n}\n```",
+      "files": [],
+      "expected_behavior": [
+        "Removes the visible state and its Effect, computing the filtered list during render (optionally with useMemo), explaining it is derived data that needs no Effect",
+        "Moves the notification into a useEffectEvent (imported from react) that reads theme, so the Effect depends on roomId only",
+        "Removes theme from the Effect dependencies without suppressing the exhaustive-deps lint, and removes the eslint-disable comment",
+        "Adds a cleanup that disconnects the connection",
+        "Removes the ref guard, explaining that Strict Mode runs setup, cleanup, setup in development and the fix is a correct cleanup",
+        "Does not call the Effect Event from render or pass it to other components or Hooks"
+      ]
+    },
+    {
+      "id": 2,
+      "query": "In a React 19.3 app (no framework, client only), build a 'Rename' form: an input, a submit button that shows 'Saving...' while pending, an error message from the server, and the new name shown immediately before the server answers. The API is `async function updateName(name): Promise<{ error?: string }>`. Use the built-in React APIs for this, not a form library.",
+      "files": [],
+      "expected_behavior": [
+        "Uses useActionState with an action whose signature is (prevState, formData) and reads the name with formData.get",
+        "Passes the dispatch function to <form action={...}> rather than handling onSubmit with preventDefault",
+        "Shows the pending state either from the isPending value of useActionState or from useFormStatus called in a child component of the form, never in the component that renders the form",
+        "Uses useOptimistic to show the new name before the server answers, calling the optimistic setter inside the action or a Transition",
+        "Notes that state updates placed after an await in a Transition must be wrapped in another startTransition, or avoids that case by returning the state from the action",
+        "Does not use the removed ReactDOM.useFormState"
+      ]
+    },
+    {
+      "id": 3,
+      "query": "We render our React 19.3 app on the server with renderToPipeableStream. One component shows the user's local time zone with Intl and must only render in the browser. Today we do this, and we get a hydration flash. What is the React-recommended way?\n\n```jsx\nfunction LocalTime() {\n  const [isClient, setIsClient] = useState(false);\n  useEffect(() => setIsClient(true), []);\n  if (!isClient) return null;\n  return <span>{Intl.DateTimeFormat().resolvedOptions().timeZone}</span>;\n}\n```",
+      "files": [],
+      "expected_behavior": [
+        "Replaces the isClient state and Effect with use(browser()), importing browser from react-dom",
+        "Wraps the component in a <Suspense> boundary with a fallback so the server renders the fallback",
+        "Does not recommend typeof window checks in render, a mounted flag, or throwing on the server to skip server rendering",
+        "Explains why the old pattern is discouraged (extra render or mismatch) without inventing APIs beyond the docs"
+      ]
+    },
+    {
+      "id": 4,
+      "query": "Upgrade this component and its test from React 18 to React 19.3, and tell me what to change in our ESLint setup, which today uses eslint-plugin-react-compiler next to eslint-plugin-react-hooks.\n\n```jsx\nconst ThemeContext = createContext('light');\n\nconst FancyInput = forwardRef(function FancyInput({ label }, ref) {\n  return <label>{label}<input ref={ref} /></label>;\n});\nFancyInput.defaultProps = { label: 'Name' };\nFancyInput.propTypes = { label: PropTypes.string };\n\nexport function Form() {\n  const ref = useRef();\n  return (\n    <ThemeContext.Provider value=\"dark\">\n      <FancyInput ref={ref} />\n    </ThemeContext.Provider>\n  );\n}\n```\n\n```js\nimport { act } from 'react-dom/test-utils';\nact(() => { root.render(<Form />); });\n```",
+      "files": [],
+      "expected_behavior": [
+        "Rewrites FancyInput as a plain function that receives ref as a prop, without forwardRef",
+        "Replaces defaultProps with an ES default parameter, such as label = 'Name'",
+        "Removes propTypes, noting React 19 ignores them and suggesting TypeScript",
+        "Renders <ThemeContext value=\"dark\"> instead of <ThemeContext.Provider>",
+        "Passes an argument to useRef, such as useRef(null), as React 19 types require",
+        "Imports act from react instead of react-dom/test-utils and awaits it with an async callback",
+        "Removes eslint-plugin-react-compiler and uses the recommended preset of eslint-plugin-react-hooks, which carries the compiler rules"
+      ]
+    }
+  ]
+}
