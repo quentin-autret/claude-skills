@@ -1,0 +1,53 @@
+[
+  {
+    "query": "We just upgraded this project from Vite 7 to Vite 8. Update the config so it uses the current options and no deprecated ones, keeping the same behavior.\n\n```js\nimport { defineConfig } from 'vite'\n\nexport default defineConfig({\n  esbuild: {\n    jsx: 'automatic',\n    jsxImportSource: 'preact',\n    drop: ['console'],\n  },\n  optimizeDeps: {\n    esbuildOptions: { target: 'es2020' },\n  },\n  server: {\n    hmr: { port: 24678, clientPort: 443 },\n  },\n  build: {\n    minify: 'esbuild',\n    rollupOptions: {\n      output: {\n        manualChunks: { vendor: ['preact', 'preact/hooks'] },\n      },\n    },\n  },\n})\n```",
+    "files": [],
+    "expected_behavior": [
+      "Replaces the esbuild option with oxc, using oxc.jsx: { runtime: 'automatic', importSource: 'preact' }",
+      "Moves the console drop to build.rolldownOptions.output.minify.compress (drop* options) rather than keeping esbuild.drop",
+      "Replaces optimizeDeps.esbuildOptions with optimizeDeps.rolldownOptions",
+      "Moves the WebSocket port and clientPort from server.hmr to server.ws",
+      "Renames build.rollupOptions to build.rolldownOptions and replaces the object form of manualChunks (removed in Vite 8) with Rolldown output.codeSplitting",
+      "Drops build.minify: 'esbuild' (deprecated, needs esbuild installed) in favor of the default Oxc minifier"
+    ]
+  },
+  {
+    "query": "In my Vite app, `console.log(process.env.VITE_API_URL)` inside vite.config.ts prints undefined, even though `.env.production` contains `VITE_API_URL=https://api.example.com`. I also want `import.meta.env.API_SECRET` available in the browser for signing requests. How do I fix both?",
+    "files": [],
+    "expected_behavior": [
+      "Explains that .env files are loaded only after the config is evaluated, so process.env does not contain them inside vite.config",
+      "Uses loadEnv(mode, process.cwd(), '') (or with a prefix) inside a function config that receives mode",
+      "Refuses to expose API_SECRET to the browser: VITE_ or exposed variables are inlined in the bundle, so secrets must stay on a backend or serverless function",
+      "Does not suggest envPrefix: '' (Vite throws) nor a define that ships the secret to the client"
+    ]
+  },
+  {
+    "query": "After upgrading to Vite 8, `import Select from 'react-select-like-cjs-lib'` renders 'Element type is invalid: expected a string ... but got: object' in production and in dev. The package is CommonJS. What changed and how do I fix it?",
+    "files": [],
+    "expected_behavior": [
+      "Explains that Vite 8 makes CommonJS default-import interop consistent across dev and build: the default import is module.exports unless the importee sets __esModule (and the importer is not .mjs or under type: module)",
+      "Proposes reading the real export (for example Select.default or a named import) or reporting the package upstream",
+      "Mentions legacy.inconsistentCjsInterop: true only as a temporary, deprecated escape hatch"
+    ]
+  },
+  {
+    "query": "Write a small Vite 8 plugin that turns every `.txt` file import into `export default \"<file content>\"`, efficient in dev and build.",
+    "files": [],
+    "expected_behavior": [
+      "Uses the object hook form with a filter, for example load or transform: { filter: { id: /\\.txt$/ }, handler }, so Rolldown skips non-matching modules",
+      "Returns moduleType: 'js' along with the generated code, since Rolldown infers the module type from the .txt extension",
+      "Gives the plugin a name and returns it from a factory function added to the plugins array",
+      "Does not rely on moduleParsed or output-generation hooks for dev behavior"
+    ]
+  },
+  {
+    "query": "My team runs the Vite dev server inside a container and opens it via https://dev-box.internal.example.com. Vite blocks the request with a host check, and someone proposed `server: { allowedHosts: true, cors: true, host: true }`. Is that fine?",
+    "files": [],
+    "expected_behavior": [
+      "Rejects allowedHosts: true because it lets any website reach the dev server through DNS rebinding and read the source",
+      "Recommends an explicit list such as allowedHosts: ['dev-box.internal.example.com'] (or '.internal.example.com' for subdomains, never a TLD)",
+      "Rejects cors: true and recommends an explicit origin if CORS is needed at all",
+      "Notes that host: true listens on all addresses, including LAN and public ones"
+    ]
+  }
+]
