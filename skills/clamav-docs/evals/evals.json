@@ -1,0 +1,56 @@
+{
+  "skill_name": "clamav-docs",
+  "evals": [
+    {
+      "id": 1,
+      "query": "Our Node.js API receives file uploads up to 50 MB and must virus-scan them before storing. ClamAV runs as a separate container (clamav/clamav) on the same Docker network. Write the TypeScript function that sends the upload buffer to clamd and returns { clean: boolean, signature?: string }, and tell me what to set in clamd.conf.",
+      "files": [],
+      "expected_behavior": [
+        "Uses the INSTREAM command with z framing (zINSTREAM\\0), not the removed STREAM command and not SCAN with a local path, since clamd in another container cannot see the API's files",
+        "Sends each chunk prefixed by a 4-byte unsigned big-endian length and ends with a zero-length chunk",
+        "Reads the reply until clamd closes the connection and parses 'stream: OK' versus '<name> FOUND', treating ERROR replies as failures rather than clean",
+        "Says StreamMaxLength must be raised to at least 50 MB, otherwise clamd answers 'INSTREAM size limit exceeded'",
+        "Warns that the clamd TCP socket is neither authenticated nor encrypted and must not be published beyond the private network"
+      ]
+    },
+    {
+      "id": 2,
+      "query": "Write a docker-compose.yml for ClamAV in production. We restart containers often, want signatures kept up to date and do not want to download the whole database every time. The host has 2 GB of RAM free for it. What image tag should we use?",
+      "files": [],
+      "expected_behavior": [
+        "Uses clamav/clamav pinned to a feature release tag such as 1.5_base, not latest or stable and not a patch tag",
+        "Mounts a named volume on /var/lib/clamav, and explains that a _base image without a volume downloads the full database on every new container",
+        "Keeps the freshclam daemon in the same container (CLAMAV_NO_FRESHCLAMD left false) so clamd is notified and reloads",
+        "Says 2 GB is likely insufficient: 3 GiB minimum, 4 GiB preferred, because the daily reload builds a second engine, otherwise clamd is killed or hangs once a day",
+        "Mentions ConcurrentDatabaseReload no as the low-memory fallback, with the cost that scans block during reload",
+        "Does not publish port 3310 publicly, or warns that clamd TCP has no protection"
+      ]
+    },
+    {
+      "id": 3,
+      "query": "clamd flags our own signed installer setup.exe as Win.Trojan.Agent-1234567-0 on every server. We cannot wait for an upstream fix. How do we stop the alert locally without disabling ClamAV, and how do we report it?",
+      "files": [],
+      "expected_behavior": [
+        "Adds the file's hash to a local allow list, for example sigtool --sha256 setup.exe >> /var/lib/clamav/false-positives.sfp (or --md5 into a .fp file), in the database directory",
+        "Offers the alternative of ignoring the signature name in an .ign2 file, optionally with the MD5 of the database entry so the ignore lapses when the signature is updated",
+        "Uses .ign2 rather than the historical .ign format",
+        "Suggests sigtool --find or unpacking the CVD to inspect the matching rule",
+        "Reports the false positive at clamav.net/reports/fp or with clamsubmit and says changes take at least 48 hours",
+        "Does not recommend --remove or deleting the file"
+      ]
+    },
+    {
+      "id": 4,
+      "query": "Write a ClamAV logical signature that fires on any file containing both the ASCII string 'evilpayload' (any case) and the bytes DE AD BE EF, and show how to test it against sample.bin.",
+      "files": [],
+      "expected_behavior": [
+        "Writes an .ldb line of the form Name;Engine:81-255,Target:0;0&1;<hex of evilpayload>::i;deadbeef, with Engine first in the target block",
+        "Uses the ::i modifier for case-insensitivity and declares Engine:81-255 because modifiers need it",
+        "Uses a signature name made only of letters, digits, dots, dashes and underscores",
+        "Puts no trailing semicolon and no blank line in the file",
+        "Tests with clamscan -d test.ldb sample.bin, suggesting --debug --verbose for format errors",
+        "Notes that -d loads only the given database, not the official CVDs"
+      ]
+    }
+  ]
+}
