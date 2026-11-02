@@ -1,0 +1,71 @@
+{
+  "skill_name": "nestjs-docs",
+  "evals": [
+    {
+      "id": 1,
+      "query": "In my NestJS 12 controller I validate the body with Zod: `create(@Body({ schema: createUserSchema }) body: CreateUserDto)`. Invalid payloads still reach the handler. Why, and what is the fix?",
+      "files": [],
+      "expected_behavior": [
+        "States that the schema option of @Body() only attaches metadata and validates nothing by itself",
+        "Tells to bind StandardSchemaValidationPipe, for example with app.useGlobalPipes(new StandardSchemaValidationPipe())",
+        "Does not tell to replace the schema with a hand-written Zod pipe or to switch to class-validator as the only fix",
+        "Cites a docs.nestjs.com URL such as https://docs.nestjs.com/migration-guide#route-decorator-schemas"
+      ]
+    },
+    {
+      "id": 2,
+      "query": "I'm upgrading a NestJS 11 app to 12. My custom health check is `class DogHealthIndicator extends HealthIndicator` and throws `new HealthCheckError('dog failed', result)` when the ping fails. What do I need to change?",
+      "files": [],
+      "expected_behavior": [
+        "States that HealthIndicator and HealthCheckError are removed in the Terminus version that ships with NestJS 12",
+        "Rewrites the indicator to inject HealthIndicatorService and use check(key) with up()/down() or attempt()",
+        "Warns that throwing no longer reports unhealthy, except inside attempt()",
+        "Cites https://docs.nestjs.com/migration-guide#terminus-module or the Terminus custom indicator page"
+      ]
+    },
+    {
+      "id": 3,
+      "query": "My NestJS service runs on 3 instances behind a load balancer. A `@Cron('0 2 * * *')` job sends a nightly invoice export, and customers get it 3 times. ScheduleModule.forRoot() is imported in AppModule and in InvoicesModule. How do I make it run exactly once?",
+      "files": [],
+      "expected_behavior": [
+        "Says to import ScheduleModule.forRoot() in one module only, because each extra import registers every job again",
+        "Explains that every instance runs every scheduled job",
+        "Recommends @OnOneInstance() from @nestjs/locks with a shared lock store rather than an env flag such as RUN_JOBS or a hand-rolled Redis SET NX",
+        "Cites https://docs.nestjs.com/application/task-scheduling URLs"
+      ]
+    },
+    {
+      "id": 4,
+      "query": "I'm moving from @nestjs/axios to @nestjs/http-client. My service calls `this.http.put('/inventory/42', { json: body })` and `this.http.post('/charges', { json: charge })` against a flaky payment API. Do I need to add retry logic myself?",
+      "files": [],
+      "expected_behavior": [
+        "States that @nestjs/http-client retries by default, 3 attempts for GET, HEAD, OPTIONS, PUT and DELETE",
+        "States that the POST is not retried by default",
+        "Shows opting the POST in per request with retry: { methods: ['POST'] } together with an idempotency-key header",
+        "Cites https://docs.nestjs.com/application/http-client#retries"
+      ]
+    },
+    {
+      "id": 5,
+      "query": "Porting an Express route to NestJS 12.1: the handler injects `@Res() res`, sets a cookie with `this.adapterHost.httpAdapter.setCookie(res, 'uid', id, { maxAge: 3600000 })` (1 hour, the value from my old Express code) and returns the user object. The request now hangs and my logging interceptor never sees the response. What's wrong?",
+      "files": [],
+      "expected_behavior": [
+        "Explains that injecting @Res() switches the route to library-specific mode, which turns off interceptors and leaves the response to the handler",
+        "Recommends @Res({ passthrough: true }) so the handler can set the cookie and still return a value",
+        "Points out that maxAge of the built-in setCookie() is in seconds, unlike Express res.cookie(), so 3600000 lasts 1000 times longer than intended, and suggests 3600",
+        "Cites https://docs.nestjs.com/controllers#library-specific-approach and https://docs.nestjs.com/http/cookies#setting-and-clearing-cookies"
+      ]
+    },
+    {
+      "id": 6,
+      "query": "On NestJS 12.1 I want security headers and CSRF protection. I plan to `npm i helmet csrf-csrf` and wire them with app.use(). Is that the recommended approach?",
+      "files": [],
+      "expected_behavior": [
+        "Recommends app.useSecurityHeaders() instead of the helmet package, called right after NestFactory.create()",
+        "Recommends app.enableCsrfProtection(), which checks Sec-Fetch-Site and Origin with no token or cookie, instead of csrf-csrf",
+        "Mentions that enableCsrfProtection() does not check WebSocket upgrades",
+        "Cites https://docs.nestjs.com/security/helmet#getting-started and https://docs.nestjs.com/security/csrf"
+      ]
+    }
+  ]
+}
