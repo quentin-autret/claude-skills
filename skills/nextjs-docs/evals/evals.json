@@ -1,0 +1,62 @@
+[
+  {
+    "id": "cache-components-product-page",
+    "query": "Next.js 16 app with cacheComponents: true. My product page app/products/[id]/page.tsx reads the user's currency from a cookie and the product from Prisma. I put 'use cache' at the top of the page and call cookies() inside it, and next build now fails. Rewrite the page so the product data is cached for hours and invalidated by tag, and the currency stays per user.",
+    "files": [],
+    "expected_behavior": [
+      "States that cookies() (and headers(), searchParams) cannot be called inside a 'use cache' scope, and reads the cookie outside the cached function, passing the currency value as an argument so it joins the cache key",
+      "Moves the Prisma read into an async cached function with 'use cache', an explicit cacheLife('hours') and a cacheTag such as product-<id>, rather than relying on the default profile",
+      "Awaits params (a Promise) and places the runtime read inside a <Suspense> boundary so the route can still prerender a static shell",
+      "Does not use export const dynamic, revalidate or fetchCache, which error under Cache Components, and does not add a runtime export",
+      "Uses updateTag in the Server Action that edits the product, or revalidateTag(tag, 'max') from a webhook, to invalidate the tag"
+    ]
+  },
+  {
+    "id": "middleware-to-proxy-auth",
+    "query": "I'm upgrading a Next.js 15 app to 16. I have middleware.ts that checks a session cookie with a database lookup and redirects to /login, exported as export function middleware(req) with no matcher. Server Actions under /dashboard rely on it for auth. Update it for Next.js 16 and tell me what else to change.",
+    "files": [],
+    "expected_behavior": [
+      "Renames the file to proxy.ts and the export to proxy, and mentions the middleware-to-proxy codemod",
+      "Notes that Proxy runs on the Node.js runtime and that a runtime option cannot be set in the file",
+      "Adds a matcher (for example a negative lookahead excluding _next/static, _next/image and favicon.ico) so Proxy does not run on static assets",
+      "Keeps Proxy to an optimistic cookie check without a database call, since it also runs on prefetches",
+      "States that Proxy is not an auth boundary and adds session and ownership checks inside each Server Action, because actions are reachable by direct POST and matcher changes can drop coverage"
+    ]
+  },
+  {
+    "id": "async-request-apis-upgrade",
+    "query": "After bumping to Next.js 16 my build fails in several files: a page does const { slug } = params, a layout calls cookies().get('theme') synchronously, a route handler reads context.params.id, and app/sitemap.ts uses generateSitemaps with sitemap({ id }) doing id * 50000. Fix them.",
+    "files": [],
+    "expected_behavior": [
+      "Explains that version 16 removed synchronous access to params, searchParams, cookies(), headers() and draftMode()",
+      "Rewrites the page with an async component and const { slug } = await props.params, optionally typed with PageProps<'/blog/[slug]'>",
+      "Awaits cookies() in the layout (const cookieStore = await cookies()) and awaits ctx.params in the Route Handler, optionally typed with RouteContext",
+      "Converts the sitemap id with Number(await id) because id is now a Promise<string>",
+      "Mentions npx @next/codemod@canary next-async-request-api . since the upgrade codemod does not run every migration"
+    ]
+  },
+  {
+    "id": "revalidate-after-server-action",
+    "query": "In my Next.js 16 Server Action I save a comment with Drizzle, then call revalidateTag('comments') and redirect('/posts/' + id). TypeScript now complains about revalidateTag, and users sometimes don't see their new comment right after the redirect. Also a CMS webhook route handler calls revalidateTag('posts'). What's the correct code?",
+    "files": [],
+    "expected_behavior": [
+      "States that the single-argument revalidateTag(tag) form is deprecated and a TypeScript error in version 16",
+      "Uses updateTag('comments') in the Server Action for read-your-own-writes, noting updateTag only works in Server Actions",
+      "Calls updateTag before redirect() because redirect throws and nothing after it runs",
+      "Uses revalidateTag('posts', 'max') in the webhook Route Handler (stale-while-revalidate), or { expire: 0 } for immediate expiry",
+      "Authenticates and authorizes inside the Server Action rather than relying on the page being protected"
+    ]
+  },
+  {
+    "id": "self-hosted-multi-instance",
+    "query": "We self-host Next.js 16 on Kubernetes with 4 pods behind nginx, built once into a Docker image with output: 'standalone'. Users randomly get 'Failed to find Server Action', revalidateTag only refreshes some pods, and Suspense streaming arrives all at once. How do we fix this?",
+    "files": [],
+    "expected_behavior": [
+      "Sets one NEXT_SERVER_ACTIONS_ENCRYPTION_KEY (base64, 16, 24 or 32 bytes) at next build so every pod shares the key, and keeps the same build ID across pods (generateBuildId or one image)",
+      "Explains that the default cache is per instance and that revalidateTag only invalidates the local pod, and configures a shared cache handler (Redis or S3, never an in-process Map) with refreshTags or cacheMaxMemorySize: 0 as documented",
+      "Distinguishes cacheHandler (ISR, fetch, unstable_cache) from cacheHandlers (use cache, use cache: remote)",
+      "Disables nginx buffering with the X-Accel-Buffering: no header so streaming works",
+      "Copies public and .next/static into the standalone folder unless a CDN serves them"
+    ]
+  }
+]
